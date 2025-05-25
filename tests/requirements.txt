@@ -1,0 +1,7 @@
+sqlmodel
+sqlalchemy
+pytest
+pytest-asyncio
+httpx
+fastapi
+pytest-mock

@@ -1,0 +1,112 @@
+// Диаграмма компонентов (UML Component Diagram)
+// https://chatgpt.com/share/682c8ee9-127c-8013-b13d-7d3b58acf8f9
+
+@startuml
+package "Пользовательский интерфейс" {
+  [Web UI] as UI
+}
+
+package "API Gateway" {
+  [API Gateway] as APIGW
+}
+
+package "Сервис-агрегатор" {
+  [Aggregator Service] as AGG
+}
+
+package "AI-Сервисы" {
+  [Text Processing Service] as TextAI
+  [Image Generation Service] as ImageAI
+}
+
+package "Слой данных" {
+  [Database] as DB
+}
+
+UI --> APIGW : HTTP-запрос
+APIGW --> AGG : REST API
+AGG --> TextAI : gRPC
+AGG --> ImageAI : gRPC
+AGG --> DB : SQL
+APIGW --> UI : HTTP-ответ
+@enduml
+
+*********************************
+**Предложения по улучшению и детализации:**
+
+*   **Укажите тип базы данных:** Вместо просто `Database` можно указать тип базы данных, например, `PostgreSQL`, `MySQL`, `MongoDB`.  Это добавляет конкретики.  Например: `[PostgreSQL Database] as DB`.
+*   **Более подробное описание HTTP-ответов:** Можно указать, что возвращает API Gateway (например, JSON).
+*   **Добавьте информацию об аутентификации и авторизации:**  Как UI аутентифицируется перед API Gateway?  Как API Gateway авторизует запросы?  Это важные аспекты безопасности. Можно добавить компоненты, отвечающие за аутентификацию и авторизацию.
+*   **Рассмотрите очередь сообщений (Message Queue):**  Если взаимодействие между компонентами асинхронное (например, для обработки долгих задач), можно добавить очередь сообщений (например, Kafka, RabbitMQ).  Это особенно актуально для AI-сервисов, которые могут занимать много времени.  Пример: `AGG --> [RabbitMQ] : Sends task`.
+*   **Обработка ошибок:** Стоит подумать об обработке ошибок. Как распространяются ошибки между компонентами?  Нужны ли отдельные компоненты для логирования и мониторинга?
+*   **Балансировка нагрузки:**  Если AI-сервисы испытывают высокую нагрузку, возможно, нужна балансировка нагрузки перед ними.  Например, добавить `[Load Balancer] as LB` между `AGG` и каждым из AI-сервисов.
+*   **Кэширование:**  Для повышения производительности можно добавить кэширование на уровне API Gateway или агрегатора.
+*   **Детализация UI:** Можно разбить UI на более мелкие компоненты (например, разные страницы или разделы приложения).
+*   **Ограничение ответственности компонентов:** Важно, чтобы каждый компонент имел четкую ответственность. Если API Gateway отвечает только за маршрутизацию и аутентификацию, а не за бизнес-логику, это нужно явно обозначить.
+*   **Документация API:**  Можно добавить компонент, отвечающий за документацию API (например, Swagger/OpenAPI).
+*   **Примеры запросов/ответов:** В комментариях (или отдельном документе, связанном с диаграммой) можно привести примеры JSON-запросов и ответов для REST API.
+
+**Пример с учетом некоторых предложений:**
+
+```plantuml
+@startuml
+package "Пользовательский интерфейс" {
+  [Web UI] as UI
+}
+
+package "API Gateway" {
+  [API Gateway] as APIGW
+  [Authentication Service] as Auth
+}
+
+package "Сервис-агрегатор" {
+  [Aggregator Service] as AGG
+}
+
+package "AI-Сервисы" {
+  [Text Processing Service] as TextAI
+  [Image Generation Service] as ImageAI
+  [Load Balancer (TextAI)] as LBTextAI
+  [Load Balancer (ImageAI)] as LBImageAI
+}
+
+package "Слой данных" {
+  [PostgreSQL Database] as DB
+}
+
+UI --> APIGW : HTTP-запрос (JSON)
+APIGW --> Auth : Validate Token
+Auth --> APIGW : Success/Failure
+APIGW --> AGG : REST API (JSON)
+
+AGG --> LBTextAI : gRPC
+LBTextAI --> TextAI : gRPC
+
+AGG --> LBImageAI : gRPC
+LBImageAI --> ImageAI : gRPC
+
+AGG --> DB : SQL
+
+APIGW --> UI : HTTP-ответ (JSON)
+
+note left of UI : User interacts with the UI
+
+note right of APIGW : Handles routing,\nauthentication,\nauthorization
+
+note right of AGG : Aggregates data from\nAI services and database
+
+note right of TextAI : Processes text input
+
+note right of ImageAI : Generates images
+
+note right of DB : Stores persistent data
+@enduml
+```
+
+**Когда использовать такую детализацию:**
+
+*   **На этапе проектирования:** Для более глубокого понимания архитектуры и выявления потенциальных проблем.
+*   **Для документирования архитектуры:** Чтобы новые разработчики быстро понимали устройство системы.
+*   **Для коммуникации с командой:** Чтобы все участники проекта имели единое представление об архитектуре.
+
+Выбор уровня детализации зависит от целей диаграммы и аудитории, для которой она предназначена. Начните с базовой диаграммы и постепенно добавляйте детали по мере необходимости.

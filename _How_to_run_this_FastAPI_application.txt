@@ -1,0 +1,52 @@
+.
+├── data_discoverer.py
+├── data_fetcher.py
+├── data_parser.py
+├── data_storage.py
+├── data_search.py
+├── models.py
+└── main.py
+└── database.py
+├──test/
+   ├── conftest.py
+   ├── test_api.py
+   ├── test_api_universal.py
+   ├── test_data_parser.py
+
+
+
+
+# To run this FastAPI application:
+# 1. Save the files as specified in the file structure.
+# 2. Install necessary libraries: pip install fastapi uvicorn pydantic requests
+  2.1 pip install fastapi uvicorn pydantic requests sqlmodel aiosqlite
+  2.2 pip install python-dotenv
+  2.3 pip install pytest-asyncio (for run test)
+
+
+# 3. Run from your terminal: uvicorn main:app --reload
+# 4. Access the interactive documentation at http://127.0.0.1:8000/docs to test the endpoints.
+#    - Use the /ingest_data POST endpoint to simulate data ingestion.
+#    - Use the /search GET endpoint with query parameters to search for data.
+
+
+
+   RUN TESTS
+*****************
+pip install pytest-asyncio
+
+pytest tests/
+
+pytest tests/ --asyncio-mode=auto
+
+# Запуск всех тестов
+pytest test_api.py -v
+
+# Запуск конкретного теста
+pytest test_api.py::TestAPI::test_get_users -v
+
+# Запуск с подробным выводом
+pytest test_api.py -v -s
+
+# Прямой запуск файла
+python test_api.py
