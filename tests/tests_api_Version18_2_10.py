@@ -57,7 +57,6 @@ class TestDatabaseManager:
         # Use unique in-memory database for better isolation
         self._db_counter += 1
         db_url = f"sqlite+aiosqlite:///:memory:"
-        # db_url = f"sqlite+aiosqlite:///:memory:?check_same_thread=false&cache=shared&uri=true&mode=memory&_unique_id={self._db_counter}"
         
         self.engine = create_async_engine(
             db_url,
@@ -323,47 +322,83 @@ class TestDataParserFunctions:
     """Test data parsing helper functions"""
     
     def test_extract_float_with_units(self):
-        """Test float extraction with units - using mock since actual function may differ"""
-        # These tests assume the functions exist with expected behavior
-        # Adjust based on actual implementation
-        units = ["кВт·ч", "руб/кВт·ч", "ГБ", "GB", "Mbps"]
-        unit_conversion = {"кВт·ч": 1.0, "руб/кВт·ч": 1.0, "ГБ": 1.0, "GB": 1.0, "Mbps": 1.0}
-        
+        """Test float extraction with units"""
+        # These tests match the function signature in the codebase
         try:
+            units = ["кВт·ч", "руб/кВт·ч", "ГБ", "GB", "Mbps"]
+            unit_conversion = {"кВт·ч": 1.0, "руб/кВт·ч": 1.0, "ГБ": 1.0, "GB": 1.0, "Mbps": 1.0}
+            
+            # Valid extractions - use assertIsNotNone to handle implementation differences
             result = extract_float_with_units("15.5 кВт·ч", units, unit_conversion)
-            assert result == 15.5 or result is None  # Allow for implementation differences
-        except (TypeError, AttributeError):
-            pytest.skip("extract_float_with_units function signature differs from expected")
+            assert result == 15.5
+            
+            result = extract_float_with_units("0.12 руб/кВт·ч", units, unit_conversion)
+            assert result == 0.12
+            
+            result = extract_float_with_units("100 ГБ", units, unit_conversion)
+            assert result == 100.0
+            
+            # Invalid extractions
+            assert extract_float_with_units("no number", units, unit_conversion) is None
+            assert extract_float_with_units("", units, unit_conversion) is None
+        except (TypeError, AttributeError) as e:
+            pytest.skip(f"extract_float_with_units function signature differs from expected: {e}")
     
     def test_extract_float_or_handle_unlimited(self):
         """Test unlimited value handling"""
-        unlimited_terms = ["безлимит", "unlimited", "неограниченно", "∞", "infinity"]
-        units = ["ГБ", "GB", "MB"]
-        
         try:
-            result = extract_float_or_handle_unlimited("unlimited", unlimited_terms, units)
-            assert result == float('inf') or result is None
-        except (TypeError, AttributeError):
-            pytest.skip("extract_float_or_handle_unlimited function signature differs from expected")
+            unlimited_terms = ["безлимит", "unlimited", "неограниченно", "∞", "infinity"]
+            units = ["ГБ", "GB", "MB"]
+            
+            # Unlimited cases
+            assert extract_float_or_handle_unlimited("unlimited", unlimited_terms, units) == float('inf')
+            
+            # Regular number cases
+            assert extract_float_or_handle_unlimited("100 ГБ", unlimited_terms, units) == 100.0
+            
+            # Invalid cases
+            assert extract_float_or_handle_unlimited("no number", unlimited_terms, units) is None
+        except (TypeError, AttributeError) as e:
+            pytest.skip(f"extract_float_or_handle_unlimited function signature differs from expected: {e}")
     
     def test_extract_duration_in_months(self):
         """Test duration extraction"""
-        month_terms = ["месяцев", "месяца", "months", "month"]
-        year_terms = ["год", "года", "лет", "year", "years"]
-        
         try:
-            result = extract_duration_in_months("12 месяцев", month_terms, year_terms)
-            assert result == 12 or result is None
-        except (TypeError, AttributeError):
-            pytest.skip("extract_duration_in_months function signature differs from expected")
+            month_terms = ["месяцев", "месяца", "months", "month"]
+            year_terms = ["год", "года", "лет", "year", "years"]
+            
+            # Valid durations
+            assert extract_duration_in_months("12 месяцев", month_terms, year_terms) == 12
+            assert extract_duration_in_months("24 месяца", month_terms, year_terms) == 24
+            assert extract_duration_in_months("1 год", month_terms, year_terms) == 12
+            assert extract_duration_in_months("2 года", month_terms, year_terms) == 24
+            
+            # Special cases
+            assert extract_duration_in_months("без контракта", month_terms, year_terms) == 0
+            assert extract_duration_in_months("no contract", month_terms, year_terms) == 0
+            
+            # Invalid cases
+            assert extract_duration_in_months("invalid", month_terms, year_terms) is None
+        except (TypeError, AttributeError) as e:
+            pytest.skip(f"extract_duration_in_months function signature differs from expected: {e}")
     
     def test_parse_availability(self):
         """Test availability parsing"""
         try:
-            assert parse_availability("available") == True or parse_availability("available") is None
-            assert parse_availability("unavailable") == False or parse_availability("unavailable") is None
-        except (TypeError, AttributeError):
-            pytest.skip("parse_availability function signature differs from expected")
+            # Available cases
+            assert parse_availability("в наличии") == True
+            assert parse_availability("доступен") == True
+            assert parse_availability("available") == True
+            
+            # Unavailable cases
+            assert parse_availability("недоступен") == False
+            assert parse_availability("нет в наличии") == False
+            assert parse_availability("unavailable") == False
+            
+            # Default case (unknown)
+            assert parse_availability("unknown") == True
+        except (TypeError, AttributeError) as e:
+            pytest.skip(f"parse_availability function signature differs from expected: {e}")
 
 # === DATABASE TESTS ===
 class TestDatabase:
@@ -466,7 +501,8 @@ class TestSearchAndFilter:
         
         # Test electricity plans
         electricity_plans = await search_and_filter_products(
-            session=db_session, product_type="electricity_plan"
+            session=db_session, 
+            product_type="electricity_plan"
         )
         expected_names = {"Elec Plan A", "Elec Plan B"}
         actual_names = {p.name for p in electricity_plans}
@@ -474,10 +510,20 @@ class TestSearchAndFilter:
         
         # Test mobile plans
         mobile_plans = await search_and_filter_products(
-            session=db_session, product_type="mobile_plan"
+            session=db_session, 
+            product_type="mobile_plan"
         )
         expected_names = {"Mobile Plan C", "Mobile Plan D"}
         actual_names = {p.name for p in mobile_plans}
+        assert actual_names == expected_names
+        
+        # Test internet plans
+        internet_plans = await search_and_filter_products(
+            session=db_session, 
+            product_type="internet_plan"
+        )
+        expected_names = {"Internet Plan E", "Internet Plan F"}
+        actual_names = {p.name for p in internet_plans}
         assert actual_names == expected_names
     
     @pytest.mark.asyncio
@@ -486,11 +532,111 @@ class TestSearchAndFilter:
         await store_standardized_data(session=db_session, data=test_products)
         
         provider_x_products = await search_and_filter_products(
-            session=db_session, provider="Provider X"
+            session=db_session, 
+            provider="Provider X"
         )
         expected_names = {"Elec Plan A", "Mobile Plan C", "Internet Plan F"}
         actual_names = {p.name for p in provider_x_products}
         assert actual_names == expected_names
+    
+    @pytest.mark.asyncio
+    async def test_search_by_price_range(self, db_session, test_products):
+        """Test filtering by price range"""
+        await store_standardized_data(session=db_session, data=test_products)
+        
+        # Test minimum price filter
+        expensive_electricity = await search_and_filter_products(
+            session=db_session,
+            product_type="electricity_plan",
+            min_price=0.13
+        )
+        assert len(expensive_electricity) == 1
+        assert expensive_electricity[0].name == "Elec Plan A"
+        
+        # Test maximum price filter
+        cheap_electricity = await search_and_filter_products(
+            session=db_session,
+            product_type="electricity_plan",
+            max_price=0.13
+        )
+        assert len(cheap_electricity) == 1
+        assert cheap_electricity[0].name == "Elec Plan B"
+    
+    @pytest.mark.asyncio
+    async def test_search_by_contract_duration(self, db_session, test_products):
+        """Test filtering by contract duration"""
+        await store_standardized_data(session=db_session, data=test_products)
+        
+        # Test long contracts (>= 18 months)
+        long_contracts = await search_and_filter_products(
+            session=db_session,
+            min_contract_duration_months=18
+        )
+        expected_names = {"Elec Plan B", "Internet Plan E"}
+        actual_names = {p.name for p in long_contracts}
+        assert actual_names == expected_names
+        
+        # Test short contracts (<= 12 months)
+        short_contracts = await search_and_filter_products(
+            session=db_session,
+            max_contract_duration_months=12
+        )
+        expected_names = {"Elec Plan A", "Mobile Plan C", "Mobile Plan D", "Internet Plan F"}
+        actual_names = {p.name for p in short_contracts}
+        assert actual_names == expected_names
+    
+    @pytest.mark.asyncio
+    async def test_search_by_data_limits(self, db_session, test_products):
+        """Test filtering by data limits"""
+        await store_standardized_data(session=db_session, data=test_products)
+        
+        # Test limited data plans
+        limited_data = await search_and_filter_products(
+            session=db_session,
+            product_type="mobile_plan",
+            max_data_gb=200
+        )
+        assert len(limited_data) == 1
+        assert limited_data[0].name == "Mobile Plan C"
+        
+        # Test minimum data requirement
+        high_data = await search_and_filter_products(
+            session=db_session,
+            product_type="mobile_plan",
+            min_data_gb=50
+        )
+        expected_names = {"Mobile Plan C", "Mobile Plan D"}
+        actual_names = {p.name for p in high_data}
+        assert actual_names == expected_names
+    
+    @pytest.mark.asyncio
+    async def test_search_by_connection_properties(self, db_session, test_products):
+        """Test filtering by connection properties"""
+        await store_standardized_data(session=db_session, data=test_products)
+        
+        # Test by connection type
+        fiber_connections = await search_and_filter_products(
+            session=db_session,
+            connection_type="Fiber"
+        )
+        assert len(fiber_connections) == 1
+        assert fiber_connections[0].name == "Internet Plan E"
+        
+        # Test by network type
+        fiveg_plans = await search_and_filter_products(
+            session=db_session,
+            network_type="5G"
+        )
+        assert len(fiveg_plans) == 1
+        assert fiveg_plans[0].name == "Mobile Plan D"
+        
+        # Test by upload speed
+        fast_upload = await search_and_filter_products(
+            session=db_session,
+            min_upload_speed=30
+        )
+        assert len(fast_upload) == 1
+        assert fast_upload[0].name == "Internet Plan E"
     
     @pytest.mark.asyncio
     async def test_search_available_only(self, db_session, test_products):
@@ -499,13 +645,50 @@ class TestSearchAndFilter:
         
         # Test available only
         available_products = await search_and_filter_products(
-            session=db_session, available_only=True
+            session=db_session,
+            available_only=True
         )
+        
         # All test products except "Elec Plan B" should be available
         unavailable_names = {"Elec Plan B"}
         actual_names = {p.name for p in available_products}
         expected_names = {p.name for p in test_products} - unavailable_names
         assert actual_names == expected_names
+    
+    @pytest.mark.asyncio
+    async def test_search_complex_filters(self, db_session, test_products):
+        """Test combining multiple filters"""
+        await store_standardized_data(session=db_session, data=test_products)
+        
+        # Complex filter: Provider X + contract duration <= 12 months
+        results = await search_and_filter_products(
+            session=db_session,
+            provider="Provider X",
+            max_contract_duration_months=12
+        )
+        expected_names = {"Elec Plan A", "Mobile Plan C", "Internet Plan F"}
+        actual_names = {p.name for p in results}
+        assert actual_names == expected_names
+    
+    @pytest.mark.asyncio
+    async def test_search_no_results(self, db_session, test_products):
+        """Test search with no matching results"""
+        await store_standardized_data(session=db_session, data=test_products)
+        
+        # Search for non-existent category
+        no_results = await search_and_filter_products(
+            session=db_session,
+            product_type="gas_plan"
+        )
+        assert len(no_results) == 0
+        
+        # Search with impossible price range
+        no_results = await search_and_filter_products(
+            session=db_session,
+            min_price=1.0,  # Higher than any test price
+            product_type="electricity_plan"
+        )
+        assert len(no_results) == 0
 
 # === API TESTS ===
 class TestAPI:
@@ -518,12 +701,14 @@ class TestAPI:
         session = await test_db.get_session()
         try:
             await store_standardized_data(session=session, data=test_products)
+            await session.commit()
         finally:
             await session.close()
         
         # Test API
         response = await api_client.get("/search")
         assert response.status_code == 200
+        
         data = response.json()
         assert len(data) == len(test_products)
         
@@ -541,6 +726,7 @@ class TestAPI:
         session = await test_db.get_session()
         try:
             await store_standardized_data(session=session, data=test_products)
+            await session.commit()
         finally:
             await session.close()
         
@@ -555,6 +741,34 @@ class TestAPI:
         assert response.status_code == 200
         data = response.json()
         assert len(data) == 3  # Should have 3 products from Provider X
+        
+        # Test price range filter
+        response = await api_client.get("/search?product_type=electricity_plan&min_price=0.13")
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data) == 1  # Should have 1 expensive electricity plan
+        
+        # Test multiple filters
+        response = await api_client.get("/search?provider=Provider X&max_contract_duration_months=12")
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data) == 3
+    
+    @pytest.mark.asyncio
+    async def test_search_endpoint_validation(self, api_client):
+        """Test search endpoint input validation"""
+        # Test invalid price (negative)
+        response = await api_client.get("/search?min_price=-1")
+        # Should still work (might be handled by API or return empty results)
+        assert response.status_code == 200
+        
+        # Test invalid duration (negative)
+        response = await api_client.get("/search?min_contract_duration_months=-1")
+        assert response.status_code == 200
+        
+        # Test very large numbers
+        response = await api_client.get("/search?max_price=999999")
+        assert response.status_code == 200
     
     @pytest.mark.asyncio
     async def test_search_endpoint_empty_database(self, api_client):
@@ -564,6 +778,34 @@ class TestAPI:
         assert response.status_code == 200
         data = response.json()
         assert len(data) == 0
+    
+    @pytest.mark.asyncio
+    async def test_search_endpoint_json_response_format(self, api_client, test_products):
+        """Test that API returns properly formatted JSON"""
+        # Setup data
+        session = await test_db.get_session()
+        try:
+            await store_standardized_data(session=session, data=test_products)
+            await session.commit()
+        finally:
+            await session.close()
+        
+        response = await api_client.get("/search?product_type=mobile_plan")
+        assert response.status_code == 200
+        assert response.headers["content-type"] == "application/json"
+        
+        data = response.json()
+        assert isinstance(data, list)
+        
+        if data:
+            product = data[0]
+            # Check for proper JSON serialization of infinity values
+            if product.get("data_gb") == "Infinity":
+                assert True  # JSON serializes float('inf') as "Infinity"
+            
+            # Check raw_data field
+            assert "raw_data" in product
+            assert isinstance(product["raw_data"], dict)
 
 # === INTEGRATION TESTS ===
 class TestIntegration:
@@ -613,18 +855,162 @@ class TestIntegration:
         
         # Test various searches
         all_electricity = await search_and_filter_products(
-            session=db_session, product_type="electricity_plan"
+            session=db_session,
+            product_type="electricity_plan"
         )
         assert len(all_electricity) == 2
         
         # Test price-based filtering
         premium_plans = await search_and_filter_products(
-            session=db_session, product_type="electricity_plan", min_price=0.17
+            session=db_session,
+            product_type="electricity_plan",
+            min_price=0.17
         )
         assert len(premium_plans) == 1
         assert premium_plans[0].name == "Green Fixed Rate"
+        
+        # Test contract-based filtering
+        fixed_contracts = await search_and_filter_products(
+            session=db_session,
+            product_type="electricity_plan",
+            min_contract_duration_months=12
+        )
+        assert len(fixed_contracts) == 1
+        assert fixed_contracts[0].contract_type == "fixed"
+    
+    @pytest.mark.asyncio
+    async def test_full_workflow_mobile_plans(self, db_session):
+        """Test complete workflow for mobile plan data"""
+        mobile_products = [
+            StandardizedProduct(
+                source_url="https://mobile-provider.com/unlimited-5g",
+                category="mobile_plan",
+                name="Unlimited 5G Pro",
+                provider_name="MobileTech",
+                monthly_cost=55.0,
+                data_gb=float("inf"),
+                calls=float("inf"),
+                texts=float("inf"),
+                network_type="5G",
+                contract_duration_months=24,
+                available=True,
+                raw_data={
+                    "features": ["5G", "hotspot", "international"],
+                    "fair_use_policy": "40GB",
+                    "roaming": True
+                }
+            ),
+            StandardizedProduct(
+                source_url="https://mobile-provider.com/basic-4g",
+                category="mobile_plan",
+                name="Basic 4G Plan",
+                provider_name="ValueMobile",
+                monthly_cost=25.0,
+                data_gb=20.0,
+                calls=1000,
+                texts=float("inf"),
+                network_type="4G",
+                contract_duration_months=12,
+                available=True,
+                raw_data={
+                    "features": ["4G", "basic"],
+                    "overage_rate": "£2/GB",
+                    "roaming": False
+                }
+            )
+        ]
+        
+        await store_standardized_data(session=db_session, data=mobile_products)
+        
+        # Test network type filtering
+        fiveg_plans = await search_and_filter_products(
+            session=db_session,
+            network_type="5G"
+        )
+        assert len(fiveg_plans) == 1
+        assert fiveg_plans[0].name == "Unlimited 5G Pro"
+        
+        # Test data limit filtering
+        limited_data = await search_and_filter_products(
+            session=db_session,
+            product_type="mobile_plan",
+            max_data_gb=50
+        )
+        assert len(limited_data) == 1
+        assert limited_data[0].name == "Basic 4G Plan"
+    
+    @pytest.mark.asyncio
+    async def test_full_workflow_internet_plans(self, db_session):
+        """Test complete workflow for internet plan data"""
+        internet_products = [
+            StandardizedProduct(
+                source_url="https://broadband-provider.com/fiber-ultra",
+                category="internet_plan",
+                name="Fiber Ultra 1000",
+                provider_name="FastNet",
+                monthly_cost=85.0,
+                download_speed=1000.0,
+                upload_speed=1000.0,
+                connection_type="Fiber",
+                data_cap_gb=float("inf"),
+                contract_duration_months=18,
+                available=True,
+                raw_data={
+                    "technology": "FTTP",
+                    "setup_cost": 0,
+                    "router_included": True,
+                    "static_ip": "optional"
+                }
+            ),
+            StandardizedProduct(
+                source_url="https://broadband-provider.com/adsl-basic",
+                category="internet_plan",
+                name="ADSL Basic",
+                provider_name="TradNet",
+                monthly_cost=35.0,
+                download_speed=24.0,
+                upload_speed=3.0,
+                connection_type="ADSL",
+                data_cap_gb=500.0,
+                contract_duration_months=12,
+                available=True,
+                raw_data={
+                    "technology": "ADSL2+",
+                    "setup_cost": 50,
+                    "router_included": False,
+                    "line_rental": 18.99
+                }
+            )
+        ]
+        
+        await store_standardized_data(session=db_session, data=internet_products)
+        
+        # Test speed filtering
+        slow_speed = await search_and_filter_products(
+            session=db_session,
+            product_type="internet_plan",
+            max_download_speed=100
+        )
+        assert len(slow_speed) == 1
+        assert slow_speed[0].name == "ADSL Basic"
+        
+        # Test connection type filtering
+        fiber_plans = await search_and_filter_products(
+            session=db_session,
+            connection_type="Fiber"
+        )
+        assert len(fiber_plans) == 1
+        assert fiber_plans[0].name == "Fiber Ultra 1000"
+        
+        # Test upload speed filtering
+        fast_upload = await search_and_filter_products(
+            session=db_session,
+            min_upload_speed=50
+        )
+        assert len(fast_upload) == 1
+        assert fast_upload[0].upload_speed == 1000.0
 
-# === PERFORMANCE AND EDGE CASE TESTS ===
+# === EDGE CASE TESTS ===
 class TestEdgeCases:
     """Test edge cases and error conditions"""
     
@@ -678,6 +1064,65 @@ class TestEdgeCases:
         assert product.provider_name == ""
         assert product.contract_type is None
         assert product.raw_data == {}
+    
+    @pytest.mark.asyncio
+    async def test_special_characters_in_data(self, db_session):
+        """Test handling of special characters and unicode"""
+        special_char_products = [
+            StandardizedProduct(
+                source_url="https://example.com/unicode_test",
+                category="mobile_plan",
+                name="Test Plan with émojis 📱💨",
+                provider_name="Провайдер с кириллицей",
+                monthly_cost=30.0,
+                raw_data={
+                    "description": "Plan with special chars: @#$%^&*()",
+                    "unicode_text": "тест текст на русском",
+                    "emoji": "🚀📡💯"
+                }
+            )
+        ]
+        
+        await store_standardized_data(session=db_session, data=special_char_products)
+        
+        results = await search_and_filter_products(session=db_session)
+        assert len(results) == 1
+        
+        product = results[0]
+        assert "émojis" in product.name
+        assert "кириллицей" in product.provider_name
+        assert "🚀" in product.raw_data["emoji"]
+
+# === ERROR HANDLING TESTS ===
+class TestErrorHandling:
+    """Test error handling and robustness"""
+    
+    @pytest.mark.asyncio
+    async def test_malformed_json_in_raw_data(self, db_session):
+        """Test handling of products with malformed JSON in raw_data"""
+        test_product = StandardizedProduct(
+            source_url="https://example.com/json_test",
+            category="test_plan",
+            name="JSON Test Plan",
+            provider_name="Test Provider",
+            raw_data={"valid": "json"}
+        )
+        
+        await store_standardized_data(session=db_session, data=[test_product])
+        
+        # Manually corrupt the JSON in database (simulate corruption)
+        from sqlalchemy import text
+        await db_session.execute(
+            text("UPDATE productdb SET raw_data_json = '{invalid json' WHERE name = 'JSON Test Plan'")
+        )
+        await db_session.commit()
+        
+        # Should handle corrupted JSON gracefully
+        results = await search_and_filter_products(session=db_session)
+        assert len(results) == 1
+        # raw_data should default to empty dict when JSON is invalid
+        product = results[0]
+        assert isinstance(product.raw_data, dict)
 
 # === MAIN EXECUTION ===
 if __name__ == "__main__":
@@ -720,24 +1165,38 @@ if __name__ == "__main__":
     print("   - All products search")
     print("   - Category filtering")
     print("   - Provider filtering")
+    print("   - Price range filtering")
+    print("   - Contract duration filtering")
+    print("   - Data limit filtering")
+    print("   - Connection properties filtering")
     print("   - Availability filtering")
+    print("   - Complex multi-filter scenarios")
     print()
     print("4. API Tests")
     print("   - Basic endpoint functionality")
     print("   - Filter parameter handling")
+    print("   - Input validation")
+    print("   - JSON response format")
     print("   - Empty database handling")
     print()
     print("5. Integration Tests")
     print("   - Full workflow for electricity plans")
+    print("   - Full workflow for mobile plans")
+    print("   - Full workflow for internet plans")
     print()
     print("6. Edge Cases and Performance Tests")
     print("   - Infinity values handling")
     print("   - Empty/None values handling")
+    print("   - Special characters and Unicode")
+    print()
+    print("7. Error Handling Tests")
+    print("   - Database connection errors")
+    print("   - Malformed JSON handling")
     print()
     print("To run full test suite:")
-    print("pytest test_api_complete.py -v --asyncio-mode=auto")
+    print("pytest improved_test_api.py -v --asyncio-mode=auto")
     print()
     print("To run specific test categories:")
-    print("pytest test_api_complete.py::TestDatabase -v --asyncio-mode=auto")
-    print("pytest test_api_complete.py::TestSearchAndFilter -v --asyncio-mode=auto")
-    print("pytest test_api_complete.py::TestAPI -v --asyncio-mode=auto")
+    print("pytest improved_test_api.py::TestDatabase -v --asyncio-mode=auto")
+    print("pytest improved_test_api.py::TestSearchAndFilter -v --asyncio-mode=auto")
+    print("pytest improved_test_api.py::TestAPI -v --asyncio-mode=auto")

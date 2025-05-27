@@ -31,8 +31,13 @@
 
 
 
+uvicorn main:app --reload
+
    RUN TESTS
 *****************
+
+pytest tests_api_Version18-3.py -v --asyncio-mode=auto
+
 pip install pytest-asyncio
 
 pytest tests/

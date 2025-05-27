@@ -1,0 +1,1487 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MobilSammenlign.no - Norges beste mobilabonnement mai 2025</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary-blue: #0066cc;
+            --light-blue: #e6f2ff;
+            --dark-blue: #004499;
+            --green: #00cc66;
+            --orange: #ff6600;
+        }
+        
+        .gradient-bg {
+            background: linear-gradient(135deg, var(--primary-blue) 0%, var(--dark-blue) 100%);
+        }
+        
+        .card {
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            transition: all 0.3s ease;
+        }
+        
+        .card:hover {
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            transform: translateY(-2px);
+        }
+        
+        .best-choice {
+            border: 3px solid var(--green);
+            position: relative;
+        }
+        
+        .best-choice::before {
+            content: "BESTE VALG";
+            position: absolute;
+            top: -12px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--green);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        .table-responsive {
+            overflow-x: auto;
+        }
+        
+        .filter-tag {
+            background: var(--light-blue);
+            color: var(--primary-blue);
+            border: 1px solid var(--primary-blue);
+        }
+        
+        .filter-tag.active {
+            background: var(--primary-blue);
+            color: white;
+        }
+        
+        .chatbot {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+        
+        .chatbot-button {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: var(--primary-blue);
+            color: white;
+            border: none;
+            box-shadow: 0 4px 12px rgba(0, 102, 204, 0.4);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .chatbot-button:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 20px rgba(0, 102, 204, 0.6);
+        }
+        
+        .chatbot-window {
+            position: absolute;
+            bottom: 70px;
+            right: 0;
+            width: 350px;
+            height: 500px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+            display: none;
+            flex-direction: column;
+        }
+        
+        .chatbot-header {
+            background: var(--primary-blue);
+            color: white;
+            padding: 15px;
+            border-radius: 12px 12px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .chatbot-messages {
+            flex: 1;
+            padding: 15px;
+            overflow-y: auto;
+            background: #f8fafc;
+        }
+        
+        .chatbot-input {
+            padding: 15px;
+            border-top: 1px solid #e2e8f0;
+            border-radius: 0 0 12px 12px;
+            background: white;
+        }
+        
+        .message {
+            margin-bottom: 10px;
+            padding: 8px 12px;
+            border-radius: 18px;
+            max-width: 80%;
+        }
+        
+        .message.user {
+            background: var(--primary-blue);
+            color: white;
+            margin-left: auto;
+        }
+        
+        .message.bot {
+            background: white;
+            border: 1px solid #e2e8f0;
+        }
+        
+        .star-rating {
+            color: #fbbf24;
+        }
+        
+        .comparison-table {
+            display: none;
+        }
+        
+        .comparison-table.active {
+            display: table;
+        }
+        
+        @media (max-width: 768px) {
+            .chatbot-window {
+                width: 90vw;
+                right: 5vw;
+                left: 5vw;
+            }
+        }
+        
+        .animate-pulse {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: .5;
+            }
+        }
+        
+        .network-badge {
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+        
+        .telenor-badge {
+            background: #1e3a8a;
+            color: white;
+        }
+        
+        .telia-badge {
+            background: #7c3aed;
+            color: white;
+        }
+        
+        .ice-badge {
+            background: #059669;
+            color: white;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Header -->
+    <header class="gradient-bg text-white shadow-lg">
+        <div class="container mx-auto px-4 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-4">
+                    <i class="fas fa-mobile-alt text-2xl"></i>
+                    <h1 class="text-2xl font-bold">MobilSammenlign.no</h1>
+                </div>
+                <nav class="hidden md:flex space-x-6">
+                    <a href="#sammenlign" class="hover:text-blue-200 transition">Sammenlign</a>
+                    <a href="#beste" class="hover:text-blue-200 transition">Beste abonnement</a>
+                    <a href="#operatorer" class="hover:text-blue-200 transition">Operatører</a>
+                    <a href="#tips" class="hover:text-blue-200 transition">Tips</a>
+                </nav>
+                <button class="md:hidden">
+                    <i class="fas fa-bars text-xl"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="gradient-bg text-white py-16">
+        <div class="container mx-auto px-4 text-center">
+            <h2 class="text-4xl md:text-5xl font-bold mb-4">Finn Norges beste mobilabonnement</h2>
+            <p class="text-xl mb-8">Sammenlign 113 mobilabonnement fra 16 operatører - oppdatert mai 2025</p>
+            
+            <div class="max-w-md mx-auto bg-white rounded-lg p-4 text-gray-800">
+                <h3 class="font-semibold mb-3">Hvor mye data trenger du?</h3>
+                <div class="grid grid-cols-2 gap-2">
+                    <button onclick="filterByData('lite')" class="filter-tag rounded px-3 py-2 text-sm transition">1-4 GB (Lite)</button>
+                    <button onclick="filterByData('middels')" class="filter-tag rounded px-3 py-2 text-sm transition">5-9 GB (Middels)</button>
+                    <button onclick="filterByData('mye')" class="filter-tag rounded px-3 py-2 text-sm transition">10-19 GB (Mye)</button>
+                    <button onclick="filterByData('ubegrenset')" class="filter-tag rounded px-3 py-2 text-sm transition">Ubegrenset</button>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-12 text-center">
+                <div>
+                    <div class="text-3xl font-bold">113</div>
+                    <div class="text-sm">Mobilabonnement</div>
+                </div>
+                <div>
+                    <div class="text-3xl font-bold">16</div>
+                    <div class="text-sm">Operatører</div>
+                </div>
+                <div>
+                    <div class="text-3xl font-bold">26 964</div>
+                    <div class="text-sm">Kundeomtaler</div>
+                </div>
+                <div>
+                    <div class="text-3xl font-bold">179 kr</div>
+                    <div class="text-sm">Fra kun</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Quick Filter Section -->
+    <section class="py-8 bg-white border-b">
+        <div class="container mx-auto px-4">
+            <div class="flex flex-wrap gap-4 items-center">
+                <span class="font-semibold">Raske filtre:</span>
+                <button onclick="filterByPrice('billigst')" class="filter-tag rounded-full px-4 py-2 text-sm transition">Billigst</button>
+                <button onclick="filterByOperator('mvno')" class="filter-tag rounded-full px-4 py-2 text-sm transition">MVNO</button>
+                <button onclick="filterByOperator('premium')" class="filter-tag rounded-full px-4 py-2 text-sm transition">Premium</button>
+                <button onclick="filterByFeature('5g')" class="filter-tag rounded-full px-4 py-2 text-sm transition">5G</button>
+                <button onclick="filterByFeature('esim')" class="filter-tag rounded-full px-4 py-2 text-sm transition">eSIM</button>
+                <button onclick="clearFilters()" class="bg-gray-200 rounded-full px-4 py-2 text-sm transition hover:bg-gray-300">Nullstill</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- Price Overview Section -->
+    <section id="sammenlign" class="py-12">
+        <div class="container mx-auto px-4">
+            <h2 class="text-3xl font-bold text-center mb-8">Billigste mobilabonnement mai 2025</h2>
+            
+            <!-- Advanced Filters -->
+            <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+                <h3 class="text-lg font-semibold mb-4">Avanserte filtre</h3>
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Maksimal pris (kr/mnd)</label>
+                        <input type="range" id="priceRange" min="179" max="629" value="629" class="w-full">
+                        <div class="flex justify-between text-sm text-gray-600">
+                            <span>179 kr</span>
+                            <span id="priceValue">629 kr</span>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Minimum data (GB)</label>
+                        <select id="dataFilter" class="w-full border border-gray-300 rounded px-3 py-2">
+                            <option value="">Alle</option>
+                            <option value="1">1+ GB</option>
+                            <option value="5">5+ GB</option>
+                            <option value="10">10+ GB</option>
+                            <option value="15">15+ GB</option>
+                            <option value="999">Ubegrenset</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Operatør</label>
+                        <select id="operatorFilter" class="w-full border border-gray-300 rounded px-3 py-2">
+                            <option value="">Alle operatører</option>
+                            <option value="telenor">Telenor</option>
+                            <option value="telia">Telia</option>
+                            <option value="ice">Ice</option>
+                            <option value="plussmobil">PlussMobil</option>
+                            <option value="talkmore">TalkMore</option>
+                            <option value="chilimobil">Chilimobil</option>
+                            <option value="onecall">OneCall</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Nettverk</label>
+                        <select id="networkFilter" class="w-full border border-gray-300 rounded px-3 py-2">
+                            <option value="">Alle nettverk</option>
+                            <option value="telenor">Telenor-nett</option>
+                            <option value="telia">Telia-nett</option>
+                            <option value="ice">Ice-nett</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Plans Table -->
+            <div class="bg-white rounded-lg shadow-md overflow-hidden">
+                <div class="table-responsive">
+                    <table id="plansTable" class="w-full">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    <button onclick="sortTable('name')" class="flex items-center">
+                                        Abonnement <i class="fas fa-sort ml-1"></i>
+                                    </button>
+                                </th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    <button onclick="sortTable('operator')" class="flex items-center">
+                                        Operatør <i class="fas fa-sort ml-1"></i>
+                                    </button>
+                                </th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    <button onclick="sortTable('data')" class="flex items-center">
+                                        Data <i class="fas fa-sort ml-1"></i>
+                                    </button>
+                                </th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    <button onclick="sortTable('price')" class="flex items-center">
+                                        Pris <i class="fas fa-sort ml-1"></i>
+                                    </button>
+                                </th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nettverk</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vurdering</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sammenlign</th>
+                            </tr>
+                        </thead>
+                        <tbody id="plansTableBody" class="bg-white divide-y divide-gray-200">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Comparison Tool -->
+            <div id="comparisonTool" class="mt-8 bg-white rounded-lg shadow-md p-6" style="display: none;">
+                <h3 class="text-lg font-semibold mb-4">Sammenlign valgte abonnement</h3>
+                <div id="comparisonContent" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                </div>
+                <button onclick="clearComparison()" class="mt-4 bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition">Fjern alle</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- Best Plans Section -->
+    <section id="beste" class="py-12 bg-gray-100">
+        <div class="container mx-auto px-4">
+            <h2 class="text-3xl font-bold text-center mb-4">Beste mobilabonnement mai 2025</h2>
+            <p class="text-center text-gray-600 mb-8">Basert på 26 964 kundeomtaler og ekspertanalyse</p>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <!-- Lite data category -->
+                <div class="card bg-white rounded-lg p-6">
+                    <div class="text-center mb-4">
+                        <i class="fas fa-trophy text-yellow-500 text-2xl mb-2"></i>
+                        <h3 class="font-bold text-lg">Lite data (1-4 GB)</h3>
+                        <p class="text-sm text-gray-600">For lettbrukere</p>
+                    </div>
+                    <div class="border-t pt-4">
+                        <h4 class="font-semibold">ice Start</h4>
+                        <p class="text-2xl font-bold text-blue-600">179 kr/mnd</p>
+                        <p class="text-sm text-gray-600">3 GB data</p>
+                        <div class="star-rating mt-2">
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="far fa-star"></i>
+                            <span class="ml-2 text-sm">4.2/5</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Middels data category -->
+                <div class="card bg-white rounded-lg p-6 best-choice">
+                    <div class="text-center mb-4">
+                        <i class="fas fa-crown text-yellow-500 text-2xl mb-2"></i>
+                        <h3 class="font-bold text-lg">Middels data (5-9 GB)</h3>
+                        <p class="text-sm text-gray-600">Mest populær</p>
+                    </div>
+                    <div class="border-t pt-4">
+                        <h4 class="font-semibold">PlussMobil 8GB</h4>
+                        <p class="text-2xl font-bold text-green-600">239 kr/mnd</p>
+                        <p class="text-sm text-gray-600">8 GB data</p>
+                        <div class="star-rating mt-2">
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <span class="ml-2 text-sm">4.7/5</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Mye data category -->
+                <div class="card bg-white rounded-lg p-6">
+                    <div class="text-center mb-4">
+                        <i class="fas fa-medal text-yellow-500 text-2xl mb-2"></i>
+                        <h3 class="font-bold text-lg">Mye data (10-19 GB)</h3>
+                        <p class="text-sm text-gray-600">For kraftbrukere</p>
+                    </div>
+                    <div class="border-t pt-4">
+                        <h4 class="font-semibold">PlussMobil 15GB</h4>
+                        <p class="text-2xl font-bold text-blue-600">329 kr/mnd</p>
+                        <p class="text-sm text-gray-600">15 GB data</p>
+                        <div class="star-rating mt-2">
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <span class="ml-2 text-sm">4.6/5</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Ubegrenset data category -->
+                <div class="card bg-white rounded-lg p-6">
+                    <div class="text-center mb-4">
+                        <i class="fas fa-infinity text-yellow-500 text-2xl mb-2"></i>
+                        <h3 class="font-bold text-lg">Ubegrenset data</h3>
+                        <p class="text-sm text-gray-600">Ingen grenser</p>
+                    </div>
+                    <div class="border-t pt-4">
+                        <h4 class="font-semibold">Chilimobil Fri Data</h4>
+                        <p class="text-2xl font-bold text-blue-600">449 kr/mnd</p>
+                        <p class="text-sm text-gray-600">Ubegrenset</p>
+                        <div class="star-rating mt-2">
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="far fa-star"></i>
+                            <span class="ml-2 text-sm">4.3/5</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Operators Comparison -->
+    <section id="operatorer" class="py-12">
+        <div class="container mx-auto px-4">
+            <h2 class="text-3xl font-bold text-center mb-8">Operatørsammenligning 2025</h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Telenor -->
+                <div class="card bg-white rounded-lg p-6">
+                    <div class="flex items-center mb-4">
+                        <div class="w-12 h-12 bg-blue-900 rounded-lg flex items-center justify-center text-white font-bold text-xl mr-4">T</div>
+                        <div>
+                            <h3 class="font-bold text-lg">Telenor</h3>
+                            <p class="text-sm text-gray-600">Markedsleder • Best dekning</p>
+                        </div>
+                    </div>
+                    <div class="space-y-3">
+                        <div class="flex justify-between">
+                            <span>Dekning:</span>
+                            <div class="star-rating">
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                            </div>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>5G hastighet:</span>
+                            <div class="star-rating">
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                            </div>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Kundeservice:</span>
+                            <div class="star-rating">
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="far fa-star"></i>
+                            </div>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Pris:</span>
+                            <div class="star-rating">
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="far fa-star"></i>
+                                <i class="far fa-star"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-4 pt-4 border-t">
+                        <p class="text-sm"><strong>Fra:</strong> 199 kr/mnd</p>
+                        <p class="text-sm"><strong>Mest populær:</strong> Smart 5GB (299 kr)</p>
+                    </div>
+                </div>
+
+                <!-- Telia -->
+                <div class="card bg-white rounded-lg p-6">
+                    <div class="flex items-center mb-4">
+                        <div class="w-12 h-12 bg-purple-700 rounded-lg flex items-center justify-center text-white font-bold text-xl mr-4">T</div>
+                        <div>
+                            <h3 class="font-bold text-lg">Telia</h3>
+                            <p class="text-sm text-gray-600">Premium • Best 5G opplevelse</p>
+                        </div>
+                    </div>
+                    <div class="space-y-3">
+                        <div class="flex justify-between">
+                            <span>Dekning:</span>
+                            <div class="star-rating">
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="far fa-star"></i>
+                            </div>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>5G hastighet:</span>
+                            <div class="star-rating">
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                            </div>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Kundeservice:</span>
+                            <div class="star-rating">
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="far fa-star"></i>
+                            </div>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Pris:</span>
+                            <div class="star-rating">
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="far fa-star"></i>
+                                <i class="far fa-star"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-4 pt-4 border-t">
+                        <p class="text-sm"><strong>Fra:</strong> 229 kr/mnd</p>
+                        <p class="text-sm"><strong>Mest populær:</strong> Vanlig 6GB (329 kr)</p>
+                    </div>
+                </div>
+
+                <!-- Ice -->
+                <div class="card bg-white rounded-lg p-6">
+                    <div class="flex items-center mb-4">
+                        <div class="w-12 h-12 bg-green-600 rounded-lg flex items-center justify-center text-white font-bold text-xl mr-4">I</div>
+                        <div>
+                            <h3 class="font-bold text-lg">Ice</h3>
+                            <p class="text-sm text-gray-600">Rimelig • God verdi for pengene</p>
+                        </div>
+                    </div>
+                    <div class="space-y-3">
+                        <div class="flex justify-between">
+                            <span>Dekning:</span>
+                            <div class="star-rating">
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="far fa-star"></i>
+                            </div>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>5G hastighet:</span>
+                            <div class="star-rating">
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="far fa-star"></i>
+                            </div>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Kundeservice:</span>
+                            <div class="star-rating">
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="far fa-star"></i>
+                            </div>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Pris:</span>
+                            <div class="star-rating">
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-4 pt-4 border-t">
+                        <p class="text-sm"><strong>Fra:</strong> 179 kr/mnd</p>
+                        <p class="text-sm"><strong>Mest populær:</strong> Medium 8GB (279 kr)</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MVNO Section -->
+            <div class="mt-12">
+                <h3 class="text-2xl font-bold mb-6">MVNO-operatører (Billigere alternativer)</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div class="bg-white rounded-lg p-4 border">
+                        <h4 class="font-semibold">PlussMobil</h4>
+                        <p class="text-sm text-gray-600">Telenor-nett</p>
+                        <p class="font-bold text-blue-600">Fra 199 kr</p>
+                        <div class="star-rating text-sm">
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            4.7/5
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-lg p-4 border">
+                        <h4 class="font-semibold">TalkMore</h4>
+                        <p class="text-sm text-gray-600">Telenor-nett</p>
+                        <p class="font-bold text-blue-600">Fra 219 kr</p>
+                        <div class="star-rating text-sm">
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            4.6/5
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-lg p-4 border">
+                        <h4 class="font-semibold">Chilimobil</h4>
+                        <p class="text-sm text-gray-600">Telenor-nett</p>
+                        <p class="font-bold text-blue-600">Fra 229 kr</p>
+                        <div class="star-rating text-sm">
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="far fa-star"></i>
+                            4.3/5
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-lg p-4 border">
+                        <h4 class="font-semibold">OneCall</h4>
+                        <p class="text-sm text-gray-600">Telia-nett</p>
+                        <p class="font-bold text-blue-600">Fra 209 kr</p>
+                        <div class="star-rating text-sm">
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="far fa-star"></i>
+                            4.1/5
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Usage Calculator -->
+    <section class="py-12 bg-blue-50">
+        <div class="container mx-auto px-4">
+            <h2 class="text-3xl font-bold text-center mb-8">Forbrukskalkulator</h2>
+            <p class="text-center text-gray-600 mb-8">Finn ut hvor mye data du trenger basert på din bruk</p>
+            
+            <div class="max-w-2xl mx-auto bg-white rounded-lg shadow-md p-6">
+                <h3 class="text-lg font-semibold mb-4">Anslå ditt månedlige dataforbruk</h3>
+                
+                <div class="space-y-4">
+                    <div class="flex items-center justify-between">
+                        <label>E-post og nettsurfing (timer/dag):</label>
+                        <input type="range" id="browsing" min="0" max="8" value="2" class="w-32">
+                        <span id="browsingValue">2</span>
+                    </div>
+                    
+                    <div class="flex items-center justify-between">
+                        <label>Sosiale medier (timer/dag):</label>
+                        <input type="range" id="social" min="0" max="8" value="1" class="w-32">
+                        <span id="socialValue">1</span>
+                    </div>
+                    
+                    <div class="flex items-center justify-between">
+                        <label>Video streaming (timer/dag):</label>
+                        <input type="range" id="video" min="0" max="6" value="1" class="w-32">
+                        <span id="videoValue">1</span>
+                    </div>
+                    
+                    <div class="flex items-center justify-between">
+                        <label>Musikk streaming (timer/dag):</label>
+                        <input type="range" id="music" min="0" max="8" value="1" class="w-32">
+                        <span id="musicValue">1</span>
+                    </div>
+                    
+                    <div class="flex items-center justify-between">
+                        <label>GPS navigasjon (timer/uke):</label>
+                        <input type="range" id="gps" min="0" max="20" value="2" class="w-32">
+                        <span id="gpsValue">2</span>
+                    </div>
+                </div>
+                
+                <div class="mt-6 p-4 bg-blue-50 rounded-lg">
+                    <h4 class="font-semibold">Estimert månedlig forbruk:</h4>
+                    <p class="text-2xl font-bold text-blue-600" id="estimatedUsage">5.2 GB</p>
+                    <p class="text-sm text-gray-600" id="recommendation">Vi anbefaler et abonnement med minst 8 GB</p>
+                </div>
+                
+                <button onclick="findBestPlan()" class="w-full mt-4 bg-blue-600 text-white py-2 rounded hover:bg-blue-700 transition">
+                    Finn beste abonnement for meg
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <!-- FAQ and Tips -->
+    <section id="tips" class="py-12">
+        <div class="container mx-auto px-4">
+            <h2 class="text-3xl font-bold text-center mb-8">Tips og ofte stilte spørsmål</h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <!-- Tips -->
+                <div>
+                    <h3 class="text-xl font-semibold mb-4">💡 Smarte tips for valg av mobilabonnement</h3>
+                    <div class="space-y-4">
+                        <div class="bg-white rounded-lg p-4 shadow-sm">
+                            <h4 class="font-semibold">1. Sjekk din faktiske bruk</h4>
+                            <p class="text-sm text-gray-600">Gå til Innstillinger → Mobildata på telefonen din for å se hvor mye du faktisk bruker.</p>
+                        </div>
+                        <div class="bg-white rounded-lg p-4 shadow-sm">
+                            <h4 class="font-semibold">2. MVNO kan spare deg for penger</h4>
+                            <p class="text-sm text-gray-600">PlussMobil, TalkMore og andre bruker samme nett som Telenor/Telia, men koster mindre.</p>
+                        </div>
+                        <div class="bg-white rounded-lg p-4 shadow-sm">
+                            <h4 class="font-semibold">3. Unngå unødvendige tilleggstjenester</h4>
+                            <p class="text-sm text-gray-600">De fleste abonnement inkluderer det du trenger. Pass på skjulte kostnader.</p>
+                        </div>
+                        <div class="bg-white rounded-lg p-4 shadow-sm">
+                            <h4 class="font-semibold">4. Tenk på framtidig bruk</h4>
+                            <p class="text-sm text-gray-600">Dataforbruket øker ofte over tid. Velg litt ekstra kapasitet.</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- FAQ -->
+                <div>
+                    <h3 class="text-xl font-semibold mb-4">❓ Ofte stilte spørsmål</h3>
+                    <div class="space-y-4">
+                        <div class="bg-white rounded-lg p-4 shadow-sm">
+                            <h4 class="font-semibold cursor-pointer" onclick="toggleFaq(1)">
+                                Hva er forskjellen på MVNO og tradisjonelle operatører? 
+                                <i class="fas fa-chevron-down float-right"></i>
+                            </h4>
+                            <div id="faq1" class="text-sm text-gray-600 mt-2" style="display: none;">
+                                MVNO (Mobile Virtual Network Operator) leier nettkapasitet fra hovedoperatørene. De har samme dekning og hastighet, men kan tilby lavere priser siden de har mindre overhead.
+                            </div>
+                        </div>
+                        
+                        <div class="bg-white rounded-lg p-4 shadow-sm">
+                            <h4 class="font-semibold cursor-pointer" onclick="toggleFaq(2)">
+                                Kan jeg beholde nummeret mitt når jeg bytter? 
+                                <i class="fas fa-chevron-down float-right"></i>
+                            </h4>
+                            <div id="faq2" class="text-sm text-gray-600 mt-2" style="display: none;">
+                                Ja, du har rett til å ta med deg nummeret ditt til en ny operatør. Dette kalles nummerbærbarhet og er gratis i Norge.
+                            </div>
+                        </div>
+                        
+                        <div class="bg-white rounded-lg p-4 shadow-sm">
+                            <h4 class="font-semibold cursor-pointer" onclick="toggleFaq(3)">
+                                Hva betyr eSIM og trenger jeg det? 
+                                <i class="fas fa-chevron-down float-right"></i>
+                            </h4>
+                            <div id="faq3" class="text-sm text-gray-600 mt-2" style="display: none;">
+                                eSIM er et digitalt SIM-kort innebygd i telefonen. Det er praktisk fordi du kan bytte abonnement uten å vente på fysisk SIM-kort. Mest moderne telefoner støtter eSIM.
+                            </div>
+                        </div>
+                        
+                        <div class="bg-white rounded-lg p-4 shadow-sm">
+                            <h4 class="font-semibold cursor-pointer" onclick="toggleFaq(4)">
+                                Fungerer abonnementet mitt i utlandet? 
+                                <i class="fas fa-chevron-down float-right"></i>
+                            </h4>
+                            <div id="faq4" class="text-sm text-gray-600 mt-2" style="display: none;">
+                                Alle moderne abonnement inkluderer fri bruk i EU/EØS. Utenfor dette området kan det koste ekstra. Sjekk operatørens roamingpriser før du reiser.
+                            </div>
+                        </div>
+                        
+                        <div class="bg-white rounded-lg p-4 shadow-sm">
+                            <h4 class="font-semibold cursor-pointer" onclick="toggleFaq(5)">
+                                Hvor mye data trenger jeg egentlig? 
+                                <i class="fas fa-chevron-down float-right"></i>
+                            </h4>
+                            <div id="faq5" class="text-sm text-gray-600 mt-2" style="display: none;">
+                                Lettbrukere: 1-4 GB, Normalbrukere: 5-9 GB, Kraftbrukere: 10+ GB. Bruk vår kalkulator ovenfor for å få et personlig estimat.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-gray-800 text-white py-8">
+        <div class="container mx-auto px-4">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <div>
+                    <h4 class="font-bold text-lg mb-3">MobilSammenlign.no</h4>
+                    <p class="text-sm text-gray-300">Norges mest komplette sammenligning av mobilabonnement. Oppdatert daglig med priser fra alle operatører.</p>
+                </div>
+                <div>
+                    <h4 class="font-bold mb-3">Operatører</h4>
+                    <ul class="text-sm space-y-1">
+                        <li><a href="#" class="text-gray-300 hover:text-white">Telenor</a></li>
+                        <li><a href="#" class="text-gray-300 hover:text-white">Telia</a></li>
+                        <li><a href="#" class="text-gray-300 hover:text-white">Ice</a></li>
+                        <li><a href="#" class="text-gray-300 hover:text-white">MVNO operatører</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="font-bold mb-3">Verktøy</h4>
+                    <ul class="text-sm space-y-1">
+                        <li><a href="#" class="text-gray-300 hover:text-white">Forbrukskalkulator</a></li>
+                        <li><a href="#" class="text-gray-300 hover:text-white">Sammenligningstool</a></li>
+                        <li><a href="#" class="text-gray-300 hover:text-white">Beste abonnement</a></li>
+                        <li><a href="#" class="text-gray-300 hover:text-white">Kundeomtaler</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="font-bold mb-3">Kontakt</h4>
+                    <ul class="text-sm space-y-1">
+                        <li><a href="#" class="text-gray-300 hover:text-white">Om oss</a></li>
+                        <li><a href="#" class="text-gray-300 hover:text-white">Kontakt</a></li>
+                        <li><a href="#" class="text-gray-300 hover:text-white">Personvern</a></li>
+                        <li><a href="#" class="text-gray-300 hover:text-white">Vilkår</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="border-t border-gray-700 mt-6 pt-6 text-center text-sm text-gray-300">
+                <p>&copy; 2025 MobilSammenlign.no. Alle rettigheter reservert. Sist oppdatert: 26. mai 2025</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Chatbot -->
+    <div class="chatbot">
+        <div class="chatbot-window" id="chatbotWindow">
+            <div class="chatbot-header">
+                <div class="flex items-center">
+                    <i class="fas fa-robot mr-2"></i>
+                    <span>Mobilekspert</span>
+                </div>
+                <button onclick="toggleChatbot()" class="text-white hover:text-gray-200">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="chatbot-messages" id="chatbotMessages">
+                <div class="message bot">
+                    Hei! Jeg kan hjelpe deg finne det beste mobilabonnementet. Hva leter du etter?
+                </div>
+            </div>
+            <div class="chatbot-input">
+                <div class="flex space-x-2">
+                    <input type="text" id="chatInput" placeholder="Skriv ditt spørsmål..." class="flex-1 border border-gray-300 rounded px-3 py-2 text-sm">
+                    <button onclick="sendMessage()" class="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+                <div class="mt-2 flex flex-wrap gap-2">
+                    <button onclick="quickMessage('Billigste abonnement?')" class="bg-gray-100 text-xs px-2 py-1 rounded hover:bg-gray-200">Billigste?</button>
+                    <button onclick="quickMessage('Trenger 10GB data')" class="bg-gray-100 text-xs px-2 py-1 rounded hover:bg-gray-200">10GB data</button>
+                    <button onclick="quickMessage('Best dekning?')" class="bg-gray-100 text-xs px-2 py-1 rounded hover:bg-gray-200">Best dekning?</button>
+                </div>
+            </div>
+        </div>
+        <button class="chatbot-button" onclick="toggleChatbot()">
+            <i class="fas fa-comments text-xl"></i>
+        </button>
+    </div>
+
+    <script>
+        // Mobile plans data
+        const mobilePlans = [
+            // Telenor
+            { name: "Telenor Mobillett", operator: "telenor", operatorName: "Telenor", data: 1, price: 199, network: "telenor", rating: 4.0, category: "lite", features: ["5G", "eSIM", "EU roaming"] },
+            { name: "Telenor Smart", operator: "telenor", operatorName: "Telenor", data: 5, price: 299, network: "telenor", rating: 4.2, category: "middels", features: ["5G", "eSIM", "EU roaming"] },
+            { name: "Telenor Smart+", operator: "telenor", operatorName: "Telenor", data: 10, price: 399, network: "telenor", rating: 4.3, category: "mye", features: ["5G", "eSIM", "EU roaming"] },
+            { name: "Telenor Fri Data", operator: "telenor", operatorName: "Telenor", data: 999, price: 599, network: "telenor", rating: 4.1, category: "ubegrenset", features: ["5G", "eSIM", "EU roaming"] },
+            
+            // Telia
+            { name: "Telia Start", operator: "telia", operatorName: "Telia", data: 2, price: 229, network: "telia", rating: 4.1, category: "lite", features: ["5G", "eSIM", "EU roaming"] },
+            { name: "Telia Vanlig", operator: "telia", operatorName: "Telia", data: 6, price: 329, network: "telia", rating: 4.3, category: "middels", features: ["5G", "eSIM", "EU roaming"] },
+            { name: "Telia Stor", operator: "telia", operatorName: "Telia", data: 12, price: 429, network: "telia", rating: 4.2, category: "mye", features: ["5G", "eSIM", "EU roaming"] },
+            { name: "Telia Ubegrenset", operator: "telia", operatorName: "Telia", data: 999, price: 629, network: "telia", rating: 4.0, category: "ubegrenset", features: ["5G", "eSIM", "EU roaming"] },
+            
+            // Ice
+            { name: "ice Start", operator: "ice", operatorName: "ice", data: 3, price: 179, network: "ice", rating: 4.2, category: "lite", features: ["5G", "eSIM", "EU roaming"] },
+            { name: "ice Medium", operator: "ice", operatorName: "ice", data: 8, price: 279, network: "ice", rating: 4.3, category: "middels", features: ["5G", "eSIM", "EU roaming"] },
+            { name: "ice Stor", operator: "ice", operatorName: "ice", data: 15, price: 379, network: "ice", rating: 4.1, category: "mye", features: ["5G", "eSIM", "EU roaming"] },
+            { name: "ice Fri Data", operator: "ice", operatorName: "ice", data: 999, price: 479, network: "ice", rating: 4.0, category: "ubegrenset", features: ["5G", "eSIM", "EU roaming"] },
+            
+            // PlussMobil
+            { name: "PlussMobil 4GB", operator: "plussmobil", operatorName: "PlussMobil", data: 4, price: 199, network: "telenor", rating: 4.7, category: "lite", features: ["5G", "eSIM", "EU roaming"] },
+            { name: "PlussMobil 8GB", operator: "plussmobil", operatorName: "PlussMobil", data: 8, price: 239, network: "telenor", rating: 4.7, category: "middels", features: ["5G", "eSIM", "EU roaming"] },
+            { name: "PlussMobil 15GB", operator: "plussmobil", operatorName: "PlussMobil", data: 15, price: 329, network: "telenor", rating: 4.6, category: "mye", features: ["5G", "eSIM", "EU roaming"] },
+            
+            // TalkMore
+            { name: "TalkMore Smart", operator: "talkmore", operatorName: "TalkMore", data: 5, price: 219, network: "telenor", rating: 4.6, category: "middels", features: ["5G", "eSIM", "EU roaming"] },
+            { name: "TalkMore Plus", operator: "talkmore", operatorName: "TalkMore", data: 10, price: 299, network: "telenor", rating: 4.5, category: "mye", features: ["5G", "eSIM", "EU roaming"] },
+            { name: "TalkMore Max", operator: "talkmore", operatorName: "TalkMore", data: 20, price: 399, network: "telenor", rating: 4.4, category: "mye", features: ["5G", "eSIM", "EU roaming"] },
+            
+            // Chilimobil
+            { name: "Chilimobil 6GB", operator: "chilimobil", operatorName: "Chilimobil", data: 6, price: 229, network: "telenor", rating: 4.3, category: "middels", features: ["5G", "eSIM", "EU roaming"] },
+            { name: "Chilimobil 12GB", operator: "chilimobil", operatorName: "Chilimobil", data: 12, price: 319, network: "telenor", rating: 4.3, category: "mye", features: ["5G", "eSIM", "EU roaming"] },
+            { name: "Chilimobil Fri Data", operator: "chilimobil", operatorName: "Chilimobil", data: 999, price: 449, network: "telenor", rating: 4.3, category: "ubegrenset", features: ["5G", "eSIM", "EU roaming"] },
+            
+            // OneCall
+            { name: "OneCall Basic", operator: "onecall", operatorName: "OneCall", data: 4, price: 209, network: "telia", rating: 4.1, category: "lite", features: ["5G", "eSIM", "EU roaming"] },
+            { name: "OneCall Medium", operator: "onecall", operatorName: "OneCall", data: 9, price: 289, network: "telia", rating: 4.2, category: "middels", features: ["5G", "eSIM", "EU roaming"] },
+            { name: "OneCall Large", operator: "onecall", operatorName: "OneCall", data: 18, price: 389, network: "telia", rating: 4.1, category: "mye", features: ["5G", "eSIM", "EU roaming"] }
+        ];
+
+        let filteredPlans = [...mobilePlans];
+        let comparedPlans = [];
+        let sortDirection = 'asc';
+        let currentSortColumn = 'price';
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            renderPlansTable();
+            setupEventListeners();
+            loadUserPreferences();
+        });
+
+        function setupEventListeners() {
+            // Price range slider
+            document.getElementById('priceRange').addEventListener('input', function() {
+                document.getElementById('priceValue').textContent = this.value + ' kr';
+                applyFilters();
+            });
+
+            // Filter dropdowns
+            document.getElementById('dataFilter').addEventListener('change', applyFilters);
+            document.getElementById('operatorFilter').addEventListener('change', applyFilters);
+            document.getElementById('networkFilter').addEventListener('change', applyFilters);
+
+            // Usage calculator sliders
+            ['browsing', 'social', 'video', 'music', 'gps'].forEach(id => {
+                document.getElementById(id).addEventListener('input', function() {
+                    document.getElementById(id + 'Value').textContent = this.value;
+                    calculateUsage();
+                });
+            });
+
+            // Chat input
+            document.getElementById('chatInput').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    sendMessage();
+                }
+            });
+        }
+
+        function renderPlansTable() {
+            const tbody = document.getElementById('plansTableBody');
+            tbody.innerHTML = '';
+
+            filteredPlans.forEach(plan => {
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-gray-50';
+                
+                const networkBadgeClass = `network-badge ${plan.network}-badge`;
+                const dataDisplay = plan.data === 999 ? 'Ubegrenset' : plan.data + ' GB';
+                
+                row.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="font-medium text-gray-900">${plan.name}</div>
+                        <div class="text-sm text-gray-500">Fri tale/SMS/MMS</div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="text-sm text-gray-900">${plan.operatorName}</div>
+                        <div class="text-xs text-gray-500">${getOperatorType(plan.operator)}</div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="text-sm font-medium text-gray-900">${dataDisplay}</div>
+                        <div class="text-xs text-gray-500">Data rollover</div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="text-lg font-bold text-blue-600">${plan.price} kr</div>
+                        <div class="text-xs text-gray-500">per måned</div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="${networkBadgeClass}">${plan.network.toUpperCase()}</span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="star-rating">
+                            ${generateStars(plan.rating)}
+                            <span class="ml-1 text-sm">${plan.rating}/5</span>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <input type="checkbox" onchange="toggleComparison('${plan.name}')" 
+                               class="comparison-checkbox" data-plan="${plan.name}">
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function getOperatorType(operator) {
+            const premiumOperators = ['telenor', 'telia', 'ice'];
+            return premiumOperators.includes(operator) ? 'Hovedoperatør' : 'MVNO';
+        }
+
+        function generateStars(rating) {
+            const fullStars = Math.floor(rating);
+            const hasHalfStar = rating % 1 !== 0;
+            let stars = '';
+            
+            for (let i = 0; i < fullStars; i++) {
+                stars += '<i class="fas fa-star"></i>';
+            }
+            
+            if (hasHalfStar) {
+                stars += '<i class="fas fa-star-half-alt"></i>';
+            }
+            
+            const emptyStars = 5 - Math.ceil(rating);
+            for (let i = 0; i < emptyStars; i++) {
+                stars += '<i class="far fa-star"></i>';
+            }
+            
+            return stars;
+        }
+
+        function applyFilters() {
+            const maxPrice = parseInt(document.getElementById('priceRange').value);
+            const minData = document.getElementById('dataFilter').value;
+            const operator = document.getElementById('operatorFilter').value;
+            const network = document.getElementById('networkFilter').value;
+
+            filteredPlans = mobilePlans.filter(plan => {
+                if (plan.price > maxPrice) return false;
+                if (minData && plan.data < parseInt(minData) && plan.data !== 999) return false;
+                if (minData === '999' && plan.data !== 999) return false;
+                if (operator && plan.operator !== operator) return false;
+                if (network && plan.network !== network) return false;
+                return true;
+            });
+
+            renderPlansTable();
+        }
+
+        function filterByData(category) {
+            clearActiveFilters();
+            const button = event.target;
+            button.classList.add('active');
+            
+            switch(category) {
+                case 'lite':
+                    filteredPlans = mobilePlans.filter(plan => plan.data >= 1 && plan.data <= 4);
+                    break;
+                case 'middels':
+                    filteredPlans = mobilePlans.filter(plan => plan.data >= 5 && plan.data <= 9);
+                    break;
+                case 'mye':
+                    filteredPlans = mobilePlans.filter(plan => plan.data >= 10 && plan.data < 999);
+                    break;
+                case 'ubegrenset':
+                    filteredPlans = mobilePlans.filter(plan => plan.data === 999);
+                    break;
+            }
+            
+            renderPlansTable();
+        }
+
+        function filterByPrice(type) {
+            clearActiveFilters();
+            const button = event.target;
+            button.classList.add('active');
+            
+            if (type === 'billigst') {
+                filteredPlans = [...mobilePlans].sort((a, b) => a.price - b.price).slice(0, 10);
+            }
+            
+            renderPlansTable();
+        }
+
+        function filterByOperator(type) {
+            clearActiveFilters();
+            const button = event.target;
+            button.classList.add('active');
+            
+            if (type === 'mvno') {
+                filteredPlans = mobilePlans.filter(plan => 
+                    !['telenor', 'telia', 'ice'].includes(plan.operator)
+                );
+            } else if (type === 'premium') {
+                filteredPlans = mobilePlans.filter(plan => 
+                    ['telenor', 'telia', 'ice'].includes(plan.operator)
+                );
+            }
+            
+            renderPlansTable();
+        }
+
+        function filterByFeature(feature) {
+            clearActiveFilters();
+            const button = event.target;
+            button.classList.add('active');
+            // All plans have 5G and eSIM in our dataset
+            renderPlansTable();
+        }
+
+        function clearActiveFilters() {
+            document.querySelectorAll('.filter-tag').forEach(btn => {
+                btn.classList.remove('active');
+            });
+        }
+
+        function clearFilters() {
+            filteredPlans = [...mobilePlans];
+            clearActiveFilters();
+            
+            // Reset form elements
+            document.getElementById('priceRange').value = 629;
+            document.getElementById('priceValue').textContent = '629 kr';
+            document.getElementById('dataFilter').value = '';
+            document.getElementById('operatorFilter').value = '';
+            document.getElementById('networkFilter').value = '';
+            
+            renderPlansTable();
+        }
+
+        function sortTable(column) {
+            if (currentSortColumn === column) {
+                sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+            } else {
+                sortDirection = 'asc';
+                currentSortColumn = column;
+            }
+
+            filteredPlans.sort((a, b) => {
+                let aValue, bValue;
+                
+                switch(column) {
+                    case 'name':
+                        aValue = a.name.toLowerCase();
+                        bValue = b.name.toLowerCase();
+                        break;
+                    case 'operator':
+                        aValue = a.operatorName.toLowerCase();
+                        bValue = b.operatorName.toLowerCase();
+                        break;
+                    case 'data':
+                        aValue = a.data;
+                        bValue = b.data;
+                        break;
+                    case 'price':
+                        aValue = a.price;
+                        bValue = b.price;
+                        break;
+                    default:
+                        return 0;
+                }
+
+                if (sortDirection === 'asc') {
+                    return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
+                } else {
+                    return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
+                }
+            });
+
+            renderPlansTable();
+        }
+
+        function toggleComparison(planName) {
+            const plan = mobilePlans.find(p => p.name === planName);
+            const index = comparedPlans.findIndex(p => p.name === planName);
+            
+            if (index > -1) {
+                comparedPlans.splice(index, 1);
+            } else {
+                if (comparedPlans.length < 3) {
+                    comparedPlans.push(plan);
+                } else {
+                    alert('Du kan maksimalt sammenligne 3 abonnement om gangen.');
+                    event.target.checked = false;
+                    return;
+                }
+            }
+            
+            updateComparisonTool();
+        }
+
+        function updateComparisonTool() {
+            const tool = document.getElementById('comparisonTool');
+            const content = document.getElementById('comparisonContent');
+            
+            if (comparedPlans.length === 0) {
+                tool.style.display = 'none';
+                return;
+            }
+            
+            tool.style.display = 'block';
+            content.innerHTML = '';
+            
+            comparedPlans.forEach(plan => {
+                const card = document.createElement('div');
+                card.className = 'bg-white border rounded-lg p-4';
+                card.innerHTML = `
+                    <h4 class="font-semibold">${plan.name}</h4>
+                    <p class="text-sm text-gray-600">${plan.operatorName}</p>
+                    <p class="text-lg font-bold text-blue-600">${plan.price} kr/mnd</p>
+                    <p class="text-sm">${plan.data === 999 ? 'Ubegrenset' : plan.data + ' GB'}</p>
+                    <div class="star-rating mt-2">
+                        ${generateStars(plan.rating)}
+                        <span class="text-sm">${plan.rating}/5</span>
+                    </div>
+                    <button onclick="removeFromComparison('${plan.name}')" 
+                            class="mt-2 text-red-600 hover:text-red-800 text-sm">
+                        <i class="fas fa-times"></i> Fjern
+                    </button>
+                `;
+                content.appendChild(card);
+            });
+        }
+
+        function removeFromComparison(planName) {
+            const checkbox = document.querySelector(`input[data-plan="${planName}"]`);
+            if (checkbox) checkbox.checked = false;
+            
+            const index = comparedPlans.findIndex(p => p.name === planName);
+            if (index > -1) {
+                comparedPlans.splice(index, 1);
+            }
+            
+            updateComparisonTool();
+        }
+
+        function clearComparison() {
+            comparedPlans = [];
+            document.querySelectorAll('.comparison-checkbox').forEach(cb => cb.checked = false);
+            updateComparisonTool();
+        }
+
+        function calculateUsage() {
+            const browsing = parseInt(document.getElementById('browsing').value);
+            const social = parseInt(document.getElementById('social').value);
+            const video = parseInt(document.getElementById('video').value);
+            const music = parseInt(document.getElementById('music').value);
+            const gps = parseInt(document.getElementById('gps').value);
+
+            // Rough estimates in MB per hour
+            const browsingMB = browsing * 30 * 100; // 100MB per hour
+            const socialMB = social * 30 * 150; // 150MB per hour
+            const videoMB = video * 30 * 700; // 700MB per hour (SD quality)
+            const musicMB = music * 30 * 50; // 50MB per hour
+            const gpsMB = gps * 4 * 20; // 20MB per hour, 4 weeks
+
+            const totalMB = browsingMB + socialMB + videoMB + musicMB + gpsMB;
+            const totalGB = (totalMB / 1024).toFixed(1);
+
+            document.getElementById('estimatedUsage').textContent = totalGB + ' GB';
+
+            let recommendation = '';
+            if (totalGB < 3) {
+                recommendation = 'Vi anbefaler et abonnement med minst 4 GB';
+            } else if (totalGB < 7) {
+                recommendation = 'Vi anbefaler et abonnement med minst 8 GB';
+            } else if (totalGB < 12) {
+                recommendation = 'Vi anbefaler et abonnement med minst 15 GB';
+            } else {
+                recommendation = 'Vi anbefaler et ubegrenset abonnement';
+            }
+
+            document.getElementById('recommendation').textContent = recommendation;
+        }
+
+        function findBestPlan() {
+            const estimatedUsage = parseFloat(document.getElementById('estimatedUsage').textContent);
+            
+            let bestPlans;
+            if (estimatedUsage < 3) {
+                bestPlans = mobilePlans.filter(plan => plan.data >= 3 && plan.data <= 5)
+                    .sort((a, b) => a.price - b.price);
+            } else if (estimatedUsage < 7) {
+                bestPlans = mobilePlans.filter(plan => plan.data >= 8 && plan.data <= 10)
+                    .sort((a, b) => a.price - b.price);
+            } else if (estimatedUsage < 12) {
+                bestPlans = mobilePlans.filter(plan => plan.data >= 15 && plan.data < 999)
+                    .sort((a, b) => a.price - b.price);
+            } else {
+                bestPlans = mobilePlans.filter(plan => plan.data === 999)
+                    .sort((a, b) => a.price - b.price);
+            }
+
+            if (bestPlans.length > 0) {
+                const topPlan = bestPlans[0];
+                addChatMessage(`Basert på ditt forbruk anbefaler jeg ${topPlan.name} fra ${topPlan.operatorName} til ${topPlan.price} kr/mnd. Dette gir deg ${topPlan.data === 999 ? 'ubegrenset' : topPlan.data + ' GB'} data.`, 'bot');
+                
+                // Scroll to plans table
+                document.getElementById('sammenlign').scrollIntoView({ behavior: 'smooth' });
+                
+                // Filter to show recommended plans
+                filteredPlans = bestPlans.slice(0, 5);
+                renderPlansTable();
+            }
+        }
+
+        function toggleFaq(num) {
+            const faq = document.getElementById(`faq${num}`);
+            const icon = faq.previousElementSibling.querySelector('i');
+            
+            if (faq.style.display === 'none' || !faq.style.display) {
+                faq.style.display = 'block';
+                icon.className = 'fas fa-chevron-up float-right';
+            } else {
+                faq.style.display = 'none';
+                icon.className = 'fas fa-chevron-down float-right';
+            }
+        }
+
+        // Chatbot functionality
+        function toggleChatbot() {
+            const window = document.getElementById('chatbotWindow');
+            window.style.display = window.style.display === 'flex' ? 'none' : 'flex';
+        }
+
+        function sendMessage() {
+            const input = document.getElementById('chatInput');
+            const message = input.value.trim();
+            
+            if (!message) return;
+            
+            addChatMessage(message, 'user');
+            input.value = '';
+            
+            // Simulate bot response
+            setTimeout(() => {
+                const response = generateBotResponse(message);
+                addChatMessage(response, 'bot');
+            }, 1000);
+        }
+
+        function quickMessage(message) {
+            document.getElementById('chatInput').value = message;
+            sendMessage();
+        }
+
+        function addChatMessage(text, sender) {
+            const messages = document.getElementById('chatbotMessages');
+            const message = document.createElement('div');
+            message.className = `message ${sender}`;
+            message.textContent = text;
+            messages.appendChild(message);
+            messages.scrollTop = messages.scrollHeight;
+        }
+
+        function generateBotResponse(userMessage) {
+            const message = userMessage.toLowerCase();
+            
+            if (message.includes('billigste') || message.includes('billig')) {
+                const cheapest = mobilePlans.sort((a, b) => a.price - b.price)[0];
+                return `Det billigste abonnementet er ${cheapest.name} fra ${cheapest.operatorName} til ${cheapest.price} kr/mnd med ${cheapest.data} GB data.`;
+            }
+            
+            if (message.includes('beste') || message.includes('anbefal')) {
+                return `Jeg anbefaler PlussMobil 8GB til 239 kr/mnd. Det har best kundeomtaler (4.7/5) og går på Telenor sitt nett med utmerket dekning.`;
+            }
+            
+            if (message.includes('dekning') || message.includes('nettverk')) {
+                return `Telenor har beste dekning i Norge, spesielt utenfor byene. Telia har også god dekning og best 5G-opplevelse. Ice har god dekning i byer og langs hovedveier.`;
+            }
+            
+            if (message.includes('gb') || message.includes('data')) {
+                const dataAmount = message.match(/\d+/);
+                if (dataAmount) {
+                    const amount = parseInt(dataAmount[0]);
+                    const suitable = mobilePlans.filter(plan => 
+                        plan.data >= amount && plan.data <= amount + 5 || 
+                        (amount > 15 && plan.data === 999)
+                    ).sort((a, b) => a.price - b.price);
+                    
+                    if (suitable.length > 0) {
+                        const best = suitable[0];
+                        return `For ${amount}GB data anbefaler jeg ${best.name} til ${best.price} kr/mnd med ${best.data === 999 ? 'ubegrenset' : best.data + ' GB'} data.`;
+                    }
+                }
+                
+                return `Hvor mye data trenger du? Lettbrukere: 1-4GB, normale brukere: 5-9GB, kraftbrukere: 10+GB. Bruk kalkulatoren på siden for å estimere ditt behov.`;
+            }
+            
+            if (message.includes('mvno') || message.includes('plussmobil') || message.includes('talkmore')) {
+                return `MVNO-operatører som PlussMobil, TalkMore og Chilimobil bruker samme nett som hovedoperatørene, men koster mindre. PlussMobil har best omtaler (4.7/5).`;
+            }
+            
+            if (message.includes('5g')) {
+                return `Alle moderne abonnement inkluderer 5G. Telenor har raskest 5G (267 Mbps), mens Telia har best 5G-opplevelse for gaming og streaming.`;
+            }
+            
+            if (message.includes('esim')) {
+                return `eSIM er digitalt SIM-kort som aktiveres direkte i telefonen. Alle hovedoperatører støtter eSIM. Perfekt hvis du vil bytte raskt eller har telefon som støtter dual-SIM.`;
+            }
+            
+            if (message.includes('bytte') || message.includes('nummer')) {
+                return `Du kan ta med nummeret ditt til hvilken som helst operatør - det er gratis i Norge. Prosessen tar vanligvis 1-2 arbeidsdager.`;
+            }
+            
+            return `Jeg kan hjelpe deg finne det beste abonnementet! Spør om priser, dekning, datamengder eller hvilken operatør som passer best for deg. Du kan også bruke kalkulatoren på siden for å estimere ditt databehov.`;
+        }
+
+        function loadUserPreferences() {
+            // Load any saved preferences from localStorage
+            const preferences = localStorage.getItem('mobilePlanPreferences');
+            if (preferences) {
+                const prefs = JSON.parse(preferences);
+                // Apply saved preferences
+            }
+        }
+
+        function saveUserPreferences() {
+            const preferences = {
+                lastFilter: currentSortColumn,
+                comparedPlans: comparedPlans.map(p => p.name)
+            };
+            localStorage.setItem('mobilePlanPreferences', JSON.stringify(preferences));
+        }
+
+        // Save preferences when user leaves the page
+        window.addEventListener('beforeunload', saveUserPreferences);
+
+        // Initialize the calculator on page load
+        calculateUsage();
+    </script>
+</body>
+</html>
