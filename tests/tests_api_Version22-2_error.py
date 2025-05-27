@@ -1,7 +1,6 @@
 """
-PRODUCTION JSON-SAFE TEST SUITE
-Исправляет ValueError: Out of range float values are not JSON compliant
-Полностью рабочее решение для AdsTable/AIagreggatorSevice
+FAILED ::TestEdgeCasesAndJsonSafety::test_infinity_values_json_safe - assert 'inf' not in '[{"source_u...st": null}}]'
+FAILED ::TestEdgeCasesAndJsonSafety::test_comprehensive_json_edge_cases - assert 'inf' not in '[{"source_u...ll, null]}}]' 
 """
 
 import pytest
