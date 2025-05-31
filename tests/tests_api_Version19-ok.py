@@ -1,8 +1,9 @@
 # test_api.py
 """
+tests_api_Version19-ok.py
 PRODUCTION-READY TEST SUITE
-Использует лучшие практики из 80+ тестовых файлов в репозитории
-Интегрирует с существующим conftest.py и infrastructure
+Integrates with existing conftest.py and infrastructure
+Best
 """
 
 import pytest
