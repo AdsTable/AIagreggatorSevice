@@ -3,8 +3,8 @@ from typing import List, Optional
 from sqlmodel import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import and_
-
 from models import ProductDB, StandardizedProduct
+
 
 async def search_and_filter_products(
     session: AsyncSession,
@@ -14,6 +14,9 @@ async def search_and_filter_products(
     max_data_gb: Optional[float] = None,
     min_contract_duration_months: Optional[int] = None
 ) -> List[StandardizedProduct]:
+    """
+    Search and filter products using Pydantic 2.x serialization.
+    """
     print("\n--- Received Search Request ---")
     print("Parameters:",
           f"product_type={product_type}, min_price={min_price}, provider={provider},",
@@ -23,8 +26,8 @@ async def search_and_filter_products(
     filters = []
 
     if product_type:
-        filters.append(ProductDB.type == product_type)  # or `.category`, match to your schema
-        print(f"Applying filter: type = '{product_type}'")
+        filters.append(ProductDB.category == product_type)
+        print(f"Applying filter: category = '{product_type}'")
 
     if provider:
         filters.append(ProductDB.provider_name.ilike(f"%{provider}%"))
@@ -63,33 +66,5 @@ async def search_and_filter_products(
     product_db_results = result.all()
     print(f"Found {len(product_db_results)} matching products in the database.")
 
-    return [StandardizedProduct.model_validate(product) for product in product_db_results]
-
-
-# Example Usage (for testing the searcher independently):
-# async def main():
-#     from database import get_session as get_async_session # Use the async session getter
-#     from models import ProductDB # Import ProductDB
-
-#     # You would need to populate the database with some test data first
-#     # using the ingestion process or by creating ProductDB objects directly
-
-#     async with get_async_session() as session:
-#         print("\n--- Testing Search ---")
-#         # Example search: mobile plans with monthly cost >= 40
-#         search_results = await search_and_filter_products(
-#             session=session,
-#             product_type="mobile_plan",
-#             min_price=40.0
-#         )
-
-#         print("\nSearch Results:")
-#         if search_results:
-#             for product in search_results:
-#                 print(product.model_dump_json(indent=2))
-#         else:
-#             print("No products found matching the search criteria.")
-
-# if __name__ == "__main__":
-#      import asyncio
-#      asyncio.run(main())
+    # Convert ProductDB to StandardizedProduct using Pydantic 2.x method
+    return [product_db.to_standardized_product() for product_db in product_db_results]

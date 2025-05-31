@@ -1,24 +1,35 @@
 # data_storage.py
+import logging
 from typing import List
-from sqlmodel import Session
 from sqlalchemy.ext.asyncio import AsyncSession
-from database import engine # Import the engine from your database setup
-from models import StandardizedProduct, ProductDB, create_product_db_from_standardized # Import models and helper
+from models import StandardizedProduct, ProductDB, create_product_db_from_standardized
+from pydantic import ValidationError
 
+logger = logging.getLogger("data_storage")
+logger.setLevel(logging.INFO)
 async def store_standardized_data(session: AsyncSession, data: List[StandardizedProduct]):
     """
-    Stores a list of standardized product data into the database.
-
-    Args:
-        session: The database session (SQLModel AsyncSession).
-        data: A list of StandardizedProduct Pydantic models.
+    Store standardized product data.
+    Accepts ONLY StandardizedProduct (internal canonical model).
+    Never call this with external Product or ApiResponse.
+    Performs extra validation before storing.
     """
     if not data:
-        print("No standardized data to store.")
+        logger.info("No standardized data to store.")
         return
 
-    print(f"Attempting to store {len(data)} standardized products...")
-
+    logger.info(f"Attempting to store {len(data)} standardized products...")
+    # Validate incoming data
+    for idx, product in enumerate(data):
+        if not isinstance(product, StandardizedProduct):
+            logger.error(f"Item at index {idx} is not StandardizedProduct: {product!r}")
+            raise TypeError(f"Item at index {idx} is not StandardizedProduct: {product!r}")
+        try:
+            # This will raise if the object is not valid
+            product.model_validate(product.model_dump())
+        except ValidationError as ve:
+            logger.error(f"Validation error for product at index {idx}: {ve}")
+            raise ve
     try:
         product_db_objects = [create_product_db_from_standardized(product) for product in data]
 
@@ -28,15 +39,17 @@ async def store_standardized_data(session: AsyncSession, data: List[Standardized
         # Commit the transaction
         await session.commit()
 
-        # Refresh objects (optional, but ensures they have their primary keys populated)
-        # for product_db in product_db_objects:
-        #     await session.refresh(product_db)
-
-        print(f"Successfully stored {len(data)} standardized products.")
+        logger.info(f"Successfully stored {len(data)} standardized products.")
 
     except Exception as e:
         # Rollback the transaction in case of error
         await session.rollback()
-        print(f"Error storing standardized data: {e}")
-        # Depending on severity, you might want to re-raise the exception
-        # raise e
+        logger.error(f"Error storing standardized data: {e}")
+        raise e
+        
+
+# If we had a method like this, we must convert before storing:
+#
+# def store_external_data(session, data: list[Product]):
+#     standardized = [product_to_standardized(p) for p in data]
+#     store_standardized_data(session, standardized)    

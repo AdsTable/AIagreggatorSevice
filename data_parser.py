@@ -1,62 +1,76 @@
 # data_parser.py
 from typing import List, Dict, Any, Optional
-from models import StandardizedProduct # Import the StandardizedProduct model
+from models import StandardizedProduct
+from pydantic import BaseModel, ConfigDict, field_validator
 import json
-import re # Import regular expressions
-import math # Import math for infinity
+import re
+import math
+
+
+class ParsingConfig(BaseModel):
+    """Configuration for parsing operations using Pydantic 2.x."""
+    category: str
+    field_mappings: Dict[str, str]
+    parsing_instructions: Dict[str, Dict[str, Any]]
+    
+    model_config = ConfigDict(
+        validate_assignment=True,
+        extra="forbid"
+    )
+    
+    @field_validator("category")
+    @classmethod
+    def validate_category(cls, v: str) -> str:
+        allowed = ["electricity_plan", "mobile_plan", "internet_plan"]
+        if v not in allowed:
+            raise ValueError(f"Category must be one of: {allowed}")
+        return v
 
 
 # --- Configuration for Mapping Extracted Fields to StandardizedProduct Fields ---
-# This dictionary defines how keys in the raw extracted data (from the AI)
-# should map to the fields in the StandardizedProduct model.
-# This can be edited by the user or potentially updated by AI.
-# Keys are categories, values are dictionaries mapping extracted keys to standardized keys.
 FIELD_MAPPINGS = {
     "electricity_plan": {
         "product_name_on_page": "name",
-        "price_info": "price_kwh", # The parser will need to extract the float from the string
-        "standing_charge_info": "standing_charge", # Mapping for standing charge
-        "contract_details": "contract_duration_months", # Parser extracts months from string
-        "provider_name_on_page": "provider_name", # Assuming AI extracts provider name directly sometimes
-        "contract_type_info": "contract_type", # Mapping for contract type
-        "validity_info": "available", # Mapping for availability
-        "source_url": "source_url" # Example: Store the source URL
+        "price_info": "price_kwh",
+        "standing_charge_info": "standing_charge",
+        "contract_details": "contract_duration_months",
+        "provider_name_on_page": "provider_name",
+        "contract_type_info": "contract_type",
+        "validity_info": "available",
+        "source_url": "source_url"
     },
     "mobile_plan": {
         "plan_title": "name",
-        "monthly_price_text": "monthly_cost", # Parser extracts float from string
-        "data_allowance_text": "data_gb", # Parser extracts float/handles "Unlimited"
-        "calls_info": "calls", # Mapping for calls
-        "texts_info": "texts", # Mapping for texts
-        "contract_term_text": "contract_duration_months", # Parser extracts months from string
-        "provider_name_on_page": "provider_name", # Mapping "operator" to "provider_name"
-        "network_type_info": "network_type", # Mapping for network type
-        "source_url": "source_url" # Store the source URL
+        "monthly_price_text": "monthly_cost",
+        "data_allowance_text": "data_gb",
+        "calls_info": "calls",
+        "texts_info": "texts",
+        "contract_term_text": "contract_duration_months",
+        "provider_name_on_page": "provider_name",
+        "network_type_info": "network_type",
+        "source_url": "source_url"
     },
     "internet_plan": {
         "plan_title": "name",
         "provider_name_on_page": "provider_name",
-        "download_speed_info": "download_speed", # Mapping for download speed
-        "upload_speed_info": "upload_speed", # Mapping for upload speed
-        "connection_type_info": "connection_type", # Mapping for connection type
-        "data_cap_info": "data_cap_gb", # Mapping for data cap
+        "download_speed_info": "download_speed",
+        "upload_speed_info": "upload_speed",
+        "connection_type_info": "connection_type",
+        "data_cap_info": "data_cap_gb",
         "monthly_price_text": "monthly_cost",
-        "contract_term_text": "contract_duration_months", # Mapping for contract duration
-         "source_url": "source_url" # Store the source URL
+        "contract_term_text": "contract_duration_months",
+        "source_url": "source_url"
     }
-    # Add mappings for other categories
 }
 
 # --- Configuration for How to Parse Specific Fields ---
-# This dictionary provides instructions for the parser on how to handle
-# the raw string values for certain fields (e.g., extracting numbers, handling units).
 PARSING_INSTRUCTIONS = {
     "price_kwh": {
         "method": "extract_float_with_units",
-        "units": ["kwh", "usd", "$", "kr"], # Units to look for
-        "unit_conversion": {"usd": 1.0} # Example conversion (if needed)
+        "units": ["kwh", "usd", "$", "kr"],
+        "unit_conversion": {"usd": 1.0}
     },
-     "standing_charge": { # Instructions for standing charge
+    "standing_charge": {
         "method": "extract_float_with_units",
         "units": ["usd", "$", "month", "kr"],
         "unit_conversion": {}
@@ -64,19 +78,19 @@ PARSING_INSTRUCTIONS = {
     "monthly_cost": {
         "method": "extract_float_with_units",
         "units": ["month", "$", "kr"],
-        "unit_conversion": {} # No conversion needed for now
+        "unit_conversion": {}
     },
     "data_gb": {
         "method": "extract_float_or_handle_unlimited",
-        "unlimited_terms": ["unlimited", "ubegrenset", "безлимит", "no data cap"], # Added more terms
+        "unlimited_terms": ["unlimited", "ubegrenset", "безлимит", "no data cap"],
         "units": ["gb", "gigabyte"]
     },
-    "calls": { # Instructions for calls
+    "calls": {
         "method": "extract_float_or_handle_unlimited",
         "unlimited_terms": ["unlimited", "ubegrenset", "безлимит"],
         "units": ["minutes", "мин"]
     },
-     "texts": { # Instructions for texts
+    "texts": {
         "method": "extract_float_or_handle_unlimited",
         "unlimited_terms": ["unlimited", "ubegrenset", "безлимит"],
         "units": ["texts", "sms"]
@@ -86,236 +100,217 @@ PARSING_INSTRUCTIONS = {
         "month_terms": ["month", "mo", "месяц"],
         "year_terms": ["year", "yr", "год"]
     },
-    "available": { # Instructions for availability
+    "available": {
         "method": "parse_availability"
     },
-    "download_speed": { # Instructions for download speed
+    "download_speed": {
         "method": "extract_float_with_units",
         "units": ["mbps", "mbit/s"],
         "unit_conversion": {}
     },
-    "upload_speed": { # Instructions for upload speed
+    "upload_speed": {
         "method": "extract_float_with_units",
         "units": ["mbps", "mbit/s"],
         "unit_conversion": {}
     },
-     "data_cap_gb": { # Instructions for data cap (using data_gb logic)
+    "data_cap_gb": {
         "method": "extract_float_or_handle_unlimited",
         "unlimited_terms": ["unlimited", "ubegrenset", "безлимит", "no data cap"],
         "units": ["gb", "gigabyte"]
     }
-    # Add instructions for other fields that require specific parsing logic
 }
 
-# --- Helper Parsing Functions (used by standardize_extracted_product) ---
 
-def extract_float_with_units(value: Any, units: List[str], unit_conversion: Dict[str, float]) -> Optional[float]:
-    """Extracts a float number from a string, considering potential units."""
-    if not isinstance(value, str):
-        # Handle numeric types directly
-        if isinstance(value, (int, float)):
-            return float(value)
+class OptimizedParsers:
+    """Singleton parser class with cached regex patterns for Pydantic 2.x compatibility."""
+    
+    _instance = None
+    _number_pattern = None
+    _duration_pattern = None
+    _unavailable_terms = None
+    
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+            cls._instance._initialize()
+        return cls._instance
+    
+    def _initialize(self):
+        """Initialize compiled regex patterns for performance."""
+        self._number_pattern = re.compile(r'(\d+([\.,]\d+)?)')
+        self._duration_pattern = re.compile(r'(\d+)')
+        self._unavailable_terms = [
+            "expired", "sold out", "inactive", "недоступен", 
+            "нет в наличии", "unavailable"
+        ]
+
+    def extract_float_with_units(self, value: Any, units: List[str], unit_conversion: Dict[str, float]) -> Optional[float]:
+        """Extract float with units, optimized for Pydantic 2.x."""
+        if not isinstance(value, str):
+            if isinstance(value, (int, float)):
+                return float(value)
+            return None
+
+        lowered_value = value.lower()
+        match = self._number_pattern.search(lowered_value)
+        if not match:
+            return None
+
+        try:
+            number_str = match.group(1).replace(',', '.')
+            number = float(number_str)
+        except ValueError:
+            return None
+
+        if not units:
+            return number
+
+        for unit in units:
+            if unit in lowered_value:
+                return number
+
+        return number
+
+    def extract_float_or_handle_unlimited(self, value: Any, unlimited_terms: List[str], units: List[str]) -> Optional[float]:
+        """Extract float or handle unlimited terms."""
+        if not isinstance(value, str):
+            if isinstance(value, (int, float)):
+                return float(value)
+            return None
+
+        lowered_value = value.lower()
+
+        for term in unlimited_terms:
+            if term in lowered_value:
+                return float('inf')
+
+        return self.extract_float_with_units(value, units, {})
+
+    def extract_duration_in_months(self, value: Any, month_terms: Optional[List[str]] = None, year_terms: Optional[List[str]] = None) -> Optional[int]:
+        """Extract duration and convert to months."""
+        if month_terms is None:
+            month_terms = ["month", "mo", "месяц"]
+        if year_terms is None:
+            year_terms = ["year", "yr", "год"]
+            
+        if not isinstance(value, str):
+            if isinstance(value, int):
+                return value
+            return None
+
+        lowered_value = value.lower()
+
+        no_contract_terms = ["no contract", "без контракта", "cancel anytime"]
+        if any(term in lowered_value for term in no_contract_terms):
+            return 0
+
+        match = self._duration_pattern.search(lowered_value)
+        if not match:
+            return None
+
+        try:
+            number = int(match.group(1))
+        except ValueError:
+            return None
+
+        if any(term in lowered_value for term in month_terms):
+            return number
+
+        if any(term in lowered_value for term in year_terms):
+            return number * 12
+
         return None
 
-    lowered_value = value.lower()
-
-    # Extract potential number using regex, allowing for decimal points and commas
-    # This regex is more robust for various number formats
-    match = re.search(r'(\d+([\.,]\d+)?)', lowered_value)
-    if not match:
-        return None # No number found
-
-    try:
-        # Replace comma with dot for consistent float conversion
-        number_str = match.group(1).replace(',', '.')
-        number = float(number_str)
-    except ValueError:
-        return None # Should not happen if regex matched, but good practice
-
-    if not units: # If no specific units are provided, just return the number
-         return number
-
-    # Check for units and apply conversion (simplified logic)
-    for unit in units:
-        if unit in lowered_value:
-             # For now, we just return the number if any relevant unit is found
-             # More complex logic for unit conversion (using unit_conversion) would go here
-             return number
-
-    # If a number is found but no specified unit is present,
-    # we might still return the number assuming it's in the base unit,
-    # depending on the data format. Let's return the number in this case.
-    return number
+    def parse_availability(self, value: Any) -> bool:
+        """Parse availability with enhanced logic."""
+        if isinstance(value, str):
+            normalized_value = value.strip().lower()
+            for keyword in self._unavailable_terms:
+                if keyword in normalized_value:
+                    return False
+        return True
 
 
-def extract_float_or_handle_unlimited(value: Any, unlimited_terms: List[str], units: List[str]) -> Optional[float]:
-    """Extracts a float number or handles 'unlimited' terms."""
-    if not isinstance(value, str):
-        # Handle non-string types directly if they are numeric (e.g., int, float)
-        if isinstance(value, (int, float)):
-             return float(value)
-        return None
+# Global parser instance
+parsers = OptimizedParsers()
 
-    lowered_value = value.lower()
-
-    # Check for unlimited terms first
-    for term in unlimited_terms:
-        if term in lowered_value:
-            return float('inf') # Represent unlimited as infinity
-
-    # If not unlimited, try to extract a float with units
-    # Pass unlimited_terms here so extract_float_with_units can ignore them
-    return extract_float_with_units(value, units, {})
-
-
-def extract_duration_in_months(value: Any, month_terms: List[str], year_terms: List[str]) -> Optional[int]:
-    """Extracts duration from a string and converts to months."""
-    if not isinstance(value, str):
-        # Handle integer input directly (assume it's months if it's an integer)
-        if isinstance(value, int):
-            return value
-        return None
-
-    lowered_value = value.lower()
-
-    # Handle "no contract" or similar terms first
-    no_contract_terms = ["no contract", "без контракта", "cancel anytime"]
-    if any(term in lowered_value for term in no_contract_terms):
-        return 0 # Represent no contract as 0 months
-
-    # Extract a potential number
-    match = re.search(r'(\d+)', lowered_value)
-    if not match:
-        return None # No number found
-
-    try:
-        number = int(match.group(1))
-    except ValueError:
-        return None # Should not happen if regex matched
-
-    # Check for month terms
-    if any(term in lowered_value for term in month_terms):
-        return number # Assume number is already in months
-
-    # Check for year terms
-    if any(term in lowered_value for term in year_terms):
-        return number * 12 # Convert years to months
-
-    # If a number is found but no specific duration unit (month/year),
-    # and it's not a "no contract" term, return None.
-    return None
-
-
-def parse_availability(value: Any) -> bool:
-    """ Parses a value to determine product availability.
-    Returns True if available, False if unavailable. Defaults to True if status cannot be determined as "unavailable".
-    """
-    if isinstance(value, str):
-        normalized_value = value.strip().lower()
-        # Define keywords indicating unavailability
-        unavailable_keywords = ["expired", "sold out", "inactive", "недоступен", "нет в наличии", "unavailable"] # Added "unavailable"
-        for keyword in unavailable_keywords:
-            if keyword in normalized_value:
-                return False
-    # If not explicitly determined as unavailable, assume available
-    # This includes None, empty string, and strings without unavailability keywords
-    return True
-
-
-# --- Main Standardization Function ---
 
 def standardize_extracted_product(extracted_data: Dict[str, Any], category: str) -> Optional[StandardizedProduct]:
     """
-    Standardizes data extracted by the AI into the StandardizedProduct format
-    using configurable mappings and parsing instructions.
+    Standardizes data using Pydantic 2.x validation and serialization.
     """
     print(f"Attempting to standardize data for category: {category}")
     mapping = FIELD_MAPPINGS.get(category)
     if not mapping:
-        print(f"Warning: No field mapping defined for category: {extracted_data}. Skipping standardization.")
-        # Changed print to show extracted_data instead of category in warning, seems more helpful
+        print(f"Warning: No field mapping defined for category: {category}. Skipping standardization.")
         return None
 
     standardized_fields: Dict[str, Any] = {}
-    raw_data_storage: Dict[str, Any] = extracted_data.copy() # Store a copy of the original extracted data
+    raw_data_storage: Dict[str, Any] = extracted_data.copy()
 
     for extracted_key, standardized_key in mapping.items():
         raw_value = extracted_data.get(extracted_key)
-
-        # Check if there are specific parsing instructions for this standardized field
         parsing_instruction = PARSING_INSTRUCTIONS.get(standardized_key)
-
-        parsed_value = raw_value # Default to raw value if no specific parsing applies
+        parsed_value = raw_value
 
         if parsing_instruction:
             method = parsing_instruction.get("method")
             if method == "extract_float_with_units":
-                 parsed_value = extract_float_with_units(
+                parsed_value = parsers.extract_float_with_units(
                     raw_value,
                     parsing_instruction.get("units", []),
                     parsing_instruction.get("unit_conversion", {})
-                 )
+                )
             elif method == "extract_float_or_handle_unlimited":
-                parsed_value = extract_float_or_handle_unlimited(
+                parsed_value = parsers.extract_float_or_handle_unlimited(
                     raw_value,
                     parsing_instruction.get("unlimited_terms", []),
                     parsing_instruction.get("units", [])
                 )
             elif method == "extract_duration_in_months":
-                parsed_value = extract_duration_in_months(
+                parsed_value = parsers.extract_duration_in_months(
                     raw_value,
                     parsing_instruction.get("month_terms", []),
                     parsing_instruction.get("year_terms", [])
                 )
             elif method == "parse_availability":
-                 parsed_value = parse_availability(raw_value)
+                parsed_value = parsers.parse_availability(raw_value)
             else:
                 print(f"Warning: Unknown parsing method '{method}' for field '{standardized_key}'. Storing raw value.")
-                # Fallback to storing raw value if method is unknown
 
-        # Assign the parsed value to the standardized field
         standardized_fields[standardized_key] = parsed_value
 
     standardized_fields['category'] = category
-
-    # Include the original extracted data in the raw_data field
     standardized_fields['raw_data'] = raw_data_storage
 
-    # Debugging output before validation
     print(f"Attempting to validate with data: {standardized_fields}")
 
     try:
-        # Use model_validate to create the StandardizedProduct instance,
-        # which handles type checking and validation.
-        # Any fields in standardized_fields that are not in StandardizedProduct model_fields
-        # will be ignored by model_validate, which is expected.
+        # Use Pydantic 2.x model_validate method
         return StandardizedProduct.model_validate(standardized_fields)
     except Exception as e:
         print(f"Error validating StandardizedProduct model for category {category}:")
         print(f"Error details: {e}")
         print(f"Data being validated: {standardized_fields}")
-        print("-" * 20) # Separator for clarity
+        print("-" * 20)
         return None
 
-# --- Function to Parse a List of Raw Data ---
 
 def parse_and_standardize(raw_data: List[Dict[str, Any]], category: str) -> List[StandardizedProduct]:
     """
-    Parses raw data (expected to be a list of dictionaries from AI extraction)
-    and standardizes it into a list of StandardizedProduct models,
-    using the configured mappings and parsing instructions.
+    Parse raw data and standardize using Pydantic 2.x models.
     """
     standardized_products: List[StandardizedProduct] = []
 
     if not isinstance(raw_data, list):
-        print(f"Invalid raw data format for AI extraction output: Expected a list of dictionaries, but got {type(raw_data)}. Cannot parse.")
+        print(f"Invalid raw data format: Expected a list of dictionaries, but got {type(raw_data)}. Cannot parse.")
         return standardized_products
 
     if not raw_data:
         print("No raw product data provided for parsing.")
         return standardized_products
 
-    print(f"Attempting to standardize {len(raw_data)} items from AI extraction for category: {category}.")
+    print(f"Attempting to standardize {len(raw_data)} items for category: {category}.")
 
     for item in raw_data:
         if not isinstance(item, dict):
