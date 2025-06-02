@@ -1,0 +1,758 @@
+import pytest
+import sys
+import os
+import json
+import asyncio
+from typing import Dict, Any, List, Optional
+from unittest.mock import patch, MagicMock, AsyncMock
+import tempfile
+
+# Add parent directory to path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+# FastAPI testing imports
+from httpx import AsyncClient
+from fastapi.testclient import TestClient  # Import TestClient
+from fastapi import FastAPI
+
+# Database imports
+from sqlmodel import SQLModel, select
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+from sqlalchemy.pool import StaticPool
+from sqlalchemy import text
+from sqlalchemy.exc import OperationalError
+
+# Application imports
+try:
+    from main import app  # Import the FastAPI app
+    from database import get_session
+    from models import StandardizedProduct, ProductDB
+    from data_storage import store_standardized_data
+    # Helper functions from data_parser
+    from data_parser import (
+        extract_float_with_units,
+        extract_float_or_handle_unlimited,
+        extract_duration_in_months,
+        parse_availability,
+        standardize_extracted_product,
+        parse_and_standardize,
+    )
+except ImportError as e:
+    print(f"Import error: {e}")
+    print("Make sure all required modules are available")
+
+# === TEST DATABASE SETUP ===
+class TestDatabaseManager:
+    """Manages test database lifecycle"""
+    
+    def __init__(self):
+        self.engine = None
+        self.session_factory = None
+        self.temp_db_file = None
+
+    async def setup(self):
+        """Setup test database with proper cleanup"""
+        # Use temporary file for better isolation
+        self.temp_db_file = tempfile.NamedTemporaryFile(suffix='.db', delete=False)
+        self.temp_db_file.close()
+        
+        db_url = f"sqlite+aiosqlite:///{self.temp_db_file.name}"
+        
+        self.engine = create_async_engine(
+            db_url,
+            echo=False,
+            future=True,
+            poolclass=StaticPool,
+            connect_args={"check_same_thread": False}
+        )
+        
+        # Drop all tables first to avoid index conflicts
+        async with self.engine.begin() as conn:
+            await conn.run_sync(SQLModel.metadata.drop_all)
+            await conn.run_sync(SQLModel.metadata.create_all)
+        
+        # Create session factory
+        self.session_factory = async_sessionmaker(
+            self.engine,
+            class_=AsyncSession,
+            expire_on_commit=False
+        )
+        print(f"Database setup complete. DB file: {self.temp_db_file.name}") # Add logging
+
+    async def get_session(self) -> AsyncSession:
+        """Get a new database session"""
+        if not self.session_factory:
+            await self.setup()
+        return self.session_factory()
+
+    async def clear_all_data(self):
+        """Clear all data from database"""
+        if self.engine:
+            async with self.engine.begin() as conn:
+                # Clear all tables
+                await conn.execute(text("DELETE FROM productdb"))
+
+    async def cleanup(self):
+        """Cleanup database resources"""
+        if self.engine:
+            await self.engine.dispose()
+        if self.temp_db_file and os.path.exists(self.temp_db_file.name):
+            os.unlink(self.temp_db_file.name)
+            print(f"Database cleanup complete. DB file deleted: {self.temp_db_file.name}") # Add logging
+
+# Global test database manager
+test_db = TestDatabaseManager()
+
+# === FIXTURES ===
+
+@pytest.fixture(scope="function")
+async def setup_test_environment():
+    """Setup test environment once per test function"""
+    print("Running setup_test_environment fixture")
+    # Create a new database for each test
+    await test_db.setup()
+    yield
+    # await test_db.cleanup() # Do NOT cleanup here. Cleanup is handled in session fixture
+    print("Completed setup_test_environment fixture")
+
+@pytest.fixture
+async def db_session(setup_test_environment): # Ensure setup_test_environment runs first
+    """Provide clean database session for each test"""
+    print("Running db_session fixture")
+    session = await test_db.get_session()
+    try:
+        yield session
+    finally:
+        print("Cleaning up db_session fixture")
+        await session.close()
+        await test_db.cleanup() # Cleanup database AFTER each test
+    print("Completed db_session fixture")
+
+@pytest.fixture
+def test_products():
+    """Sample test data"""
+    return [
+        StandardizedProduct(
+            source_url="https://example.com/elec/plan_a",
+            category="electricity_plan",
+            name="Elec Plan A",
+            provider_name="Provider X",
+            price_kwh=0.15,
+            standing_charge=5.0,
+            contract_duration_months=12,
+            available=True,
+            raw_data={"type": "electricity", "features": ["green", "fixed"]}
+        ),
+        StandardizedProduct(
+            source_url="https://example.com/elec/plan_b",
+            category="electricity_plan",
+            name="Elec Plan B",
+            provider_name="Provider Y",
+            price_kwh=0.12,
+            standing_charge=4.0,
+            contract_duration_months=24,
+            available=False,
+            raw_data={"type": "electricity", "features": ["variable"]}
+        ),
+        StandardizedProduct(
+            source_url="https://example.com/mobile/plan_c",
+            category="mobile_plan",
+            name="Mobile Plan C",
+            provider_name="Provider X",
+            monthly_cost=30.0,
+            data_gb=100.0,
+            calls=float("inf"),
+            texts=float("inf"),
+            contract_duration_months=0,
+            network_type="4G",
+            available=True,
+            raw_data={"type": "mobile", "features": ["unlimited_calls"]}
+        ),
+        StandardizedProduct(
+            source_url="https://example.com/mobile/plan_d",
+            category="mobile_plan",
+            name="Mobile Plan D",
+            provider_name="Provider Z",
+            monthly_cost=45.0,
+            data_gb=float("inf"),
+            calls=500,
+            texts=float("inf"),
+            contract_duration_months=12,
+            network_type="5G",
+            available=True,
+            raw_data={"type": "mobile", "features": ["5G", "unlimited_data"]}
+        ),
+        StandardizedProduct(
+            source_url="https://example.com/internet/plan_e",
+            category="internet_plan",
+            name="Internet Plan E",
+            provider_name="Provider Y",
+            download_speed=500.0,
+            upload_speed=50.0,
+            connection_type="Fiber",
+            data_cap_gb=float("inf"),
+            monthly_cost=60.0,
+            contract_duration_months=24,
+            available=True,
+            raw_data={"type": "internet", "features": ["fiber", "unlimited"]}
+        ),
+        StandardizedProduct(
+            source_url="https://example.com/internet/plan_f",
+            category="internet_plan",
+            name="Internet Plan F",
+            provider_name="Provider X",
+            download_speed=100.0,
+            upload_speed=20.0,
+            connection_type="DSL",
+            data_cap_gb=500.0,
+            monthly_cost=50.0,
+            contract_duration_months=12,
+            available=True,
+            raw_data={"type": "internet", "features": ["dsl", "limited"]}
+        ),
+    ]
+
+@pytest.fixture
+def api_client():
+    """Create API client with test database"""
+    # Use TestClient for synchronous testing
+    return TestClient(app)
+
+# === SEARCH FUNCTION ===
+
+async def search_and_filter_products(
+    session: AsyncSession,
+    product_type: Optional[str] = None,
+    provider: Optional[str] = None,
+    min_price: Optional[float] = None,
+    max_price: Optional[float] = None,
+    min_data_gb: Optional[float] = None,
+    max_data_gb: Optional[float] = None,
+    min_contract_duration_months: Optional[int] = None,
+    max_contract_duration_months: Optional[int] = None,
+    max_download_speed: Optional[float] = None,
+    min_upload_speed: Optional[float] = None,
+    connection_type: Optional[str] = None,
+    network_type: Optional[str] = None,
+    available_only: bool = False
+) -> List[StandardizedProduct]:
+    """Search and filter products with comprehensive filtering"""
+    query = select(ProductDB)
+    
+    # Build filters
+    filters = []
+    if product_type:
+        filters.append(ProductDB.category == product_type)
+    if provider:
+        filters.append(ProductDB.provider_name == provider)
+    if min_price is not None:
+        filters.append(ProductDB.price_kwh >= min_price)
+    if max_price is not None:
+        filters.append(ProductDB.price_kwh <= max_price)
+    if min_data_gb is not None:
+        filters.append(ProductDB.data_gb >= min_data_gb)
+    if max_data_gb is not None:
+        filters.extend([
+            ProductDB.data_gb <= max_data_gb,
+            ProductDB.data_cap_gb <= max_data_gb
+        ])
+    if min_contract_duration_months is not None:
+        filters.append(ProductDB.contract_duration_months >= min_contract_duration_months)
+    if max_contract_duration_months is not None:
+        filters.append(ProductDB.contract_duration_months <= max_contract_duration_months)
+    if max_download_speed is not None:
+        filters.append(ProductDB.download_speed <= max_download_speed)
+    if min_upload_speed is not None:
+        filters.append(ProductDB.upload_speed >= min_upload_speed)
+    if connection_type:
+        filters.append(ProductDB.connection_type == connection_type)
+    if network_type:
+        filters.append(ProductDB.network_type == network_type)
+    if available_only:
+        filters.append(ProductDB.available == True)
+    
+    if filters:
+        query = query.where(*filters)
+    
+    result = await session.execute(query)
+    db_products = result.scalars().all()
+    
+    # Convert to StandardizedProduct
+    standardized_products = []
+    for db_product in db_products:
+        raw_data = json.loads(db_product.raw_data_json) if db_product.raw_data_json else {}
+        product = StandardizedProduct(
+            source_url=db_product.source_url,
+            category=db_product.category,
+            name=db_product.name,
+            provider_name=db_product.provider_name,
+            price_kwh=db_product.price_kwh,
+            standing_charge=db_product.standing_charge,
+            contract_type=db_product.contract_type,
+            monthly_cost=db_product.monthly_cost,
+            data_gb=db_product.data_gb,
+            calls=db_product.calls,
+            texts=db_product.texts,
+            network_type=db_product.network_type,
+            download_speed=db_product.download_speed,
+            upload_speed=db_product.upload_speed,
+            connection_type=db_product.connection_type,
+            data_cap_gb=db_product.data_cap_gb,
+            available=db_product.available,
+            raw_data=raw_data
+        )
+        standardized_products.append(product)
+    
+    return standardized_products
+
+# === UNIT TESTS FOR HELPER FUNCTIONS ===
+
+class TestDataParserFunctions:
+    """Test data parsing helper functions"""
+    
+    def test_extract_float_with_units(self):
+        """Test float extraction with units"""
+        units = ["кВт·ч", "руб/кВт·ч", "ГБ", "GB", "Mbps"]
+        unit_conversion = {"кВт·ч": 1.0, "руб/кВт·ч": 1.0, "ГБ": 1.0, "GB": 1.0, "Mbps": 1.0}
+        
+        # Valid extractions
+        assert extract_float_with_units("15.5 кВт·ч", units, unit_conversion) == 15.5
+        assert extract_float_with_units("0.12 руб/кВт·ч", units, unit_conversion) == 0.12
+    
+    def test_extract_float_or_handle_unlimited(self):
+        """Test unlimited value handling"""
+        unlimited_terms = ["безлимит", "unlimited", "неограниченно", "∞", "infinity"]
+        units = ["ГБ", "GB", "MB"]
+        
+        # Unlimited cases
+        assert extract_float_or_handle_unlimited("безлимит", unlimited_terms, units) == float('inf')
+        assert extract_float_or_handle_unlimited("unlimited", unlimited_terms, units) == float('inf')
+    
+    def test_extract_duration_in_months(self):
+        """Test duration extraction"""
+        month_terms = ["месяцев", "месяца", "months", "month"]
+        year_terms = ["год", "года", "лет", "year", "years"]
+        
+        # Valid durations
+        assert extract_duration_in_months("12 месяцев", month_terms, year_terms) == 12
+        assert extract_duration_in_months("1 год", month_terms, year_terms) == 12
+
+    def test_parse_availability(self):
+        """Test availability parsing"""
+        # Available cases
+        assert parse_availability("в наличии") == True
+        # Unavailable cases
+        assert parse_availability("недоступен") == False
+
+# === DATABASE TESTS ===
+
+class TestDatabase:
+    """Test database operations"""
+    
+    @pytest.mark.asyncio
+    async def test_session_fixture_works(self, db_session):
+        """Test that database session works correctly"""
+        # Test basic query
+        result = await db_session.execute(select(1))
+        assert result.scalar() == 1
+        
+        # Test table exists
+        result = await db_session.execute(text("SELECT name FROM sqlite_master WHERE type='table' AND name='productdb'"))
+        table_exists = result.scalar() is not None
+        assert table_exists
+    
+    @pytest.mark.asyncio
+    async def test_store_standardized_data(self, db_session, test_products):
+        """Test storing standardized data"""
+        # Verify empty database
+        result = await db_session.execute(select(ProductDB))
+        assert len(result.scalars().all()) == 0
+        
+        # Store test data
+        await store_standardized_data(session=db_session, data=test_products)
+        
+        # Verify data was stored
+        result = await db_session.execute(select(ProductDB))
+        stored_products = result.scalars().all()
+        assert len(stored_products) == len(test_products)
+        
+        # Check that all names are present
+        stored_names = {p.name for p in stored_products}
+        expected_names = {p.name for p in test_products}
+        assert stored_names == expected_names
+        
+        # Check specific product details
+        elec_plan = next((p for p in stored_products if p.name == "Elec Plan A"), None)
+        assert elec_plan is not None
+        assert elec_plan.category == "electricity_plan"
+        assert elec_plan.provider_name == "Provider X"
+        assert elec_plan.price_kwh == 0.15
+        assert elec_plan.standing_charge == 5.0
+        assert elec_plan.contract_duration_months == 12
+        assert elec_plan.available == True
+        
+        # Check raw data JSON
+        raw_data = json.loads(elec_plan.raw_data_json)
+        assert raw_data["type"] == "electricity"
+        assert "green" in raw_data["features"]
+    
+    @pytest.mark.asyncio
+    async def test_store_duplicate_data(self, db_session, test_products):
+        """Test storing duplicate data"""
+        # Store initial data
+        await store_standardized_data(session=db_session, data=test_products[:2])
+        
+        # Verify initial storage
+        result = await db_session.execute(select(ProductDB))
+        assert len(result.scalars().all()) == 2
+        
+        # Store overlapping data
+        modified_product = test_products[0].model_copy()
+        modified_product.price_kwh = 0.20  # Changed price
+        
+        await store_standardized_data(session=db_session, data=[modified_product] + test_products[2:4])
+        
+        # Should have 4 total products (2 original + 2 new, with 1 updated)
+        result = await db_session.execute(select(ProductDB))
+        all_products = result.scalars().all()
+        assert len(all_products) == 4
+        
+        # Check that price was updated
+        updated_product = next((p for p in all_products if p.name == "Elec Plan A"), None)
+        assert updated_product.price_kwh == 0.20
+
+# === SEARCH AND FILTER TESTS ===
+
+class TestSearchAndFilter:
+    """Test search and filtering functionality"""
+    
+    @pytest.mark.asyncio
+    async def test_search_all_products(self, db_session, test_products):
+        """Test searching all products without filters"""
+        await store_standardized_data(session=db_session, data=test_products)
+        
+        results = await search_and_filter_products(session=db_session)
+        assert len(results) == len(test_products)
+        
+        # Check that all products are StandardizedProduct instances
+        for product in results:
+            assert isinstance(product, StandardizedProduct)
+    
+    @pytest.mark.asyncio
+    async def test_search_by_category(self, db_session, test_products):
+        """Test filtering by product category"""
+        await store_standardized_data(session=db_session, data=test_products)
+        
+        # Test electricity plans
+        electricity_plans = await search_and_filter_products(
+            session=db_session, 
+            product_type="electricity_plan"
+        )
+        expected_names = {"Elec Plan A", "Elec Plan B"}
+        actual_names = {p.name for p in electricity_plans}
+        assert actual_names == expected_names
+    
+    @pytest.mark.asyncio
+    async def test_search_by_provider(self, db_session, test_products):
+        """Test filtering by product category"""
+        await store_standardized_data(session=db_session, data=test_products)
+        
+        provider_x_products = await search_and_filter_products(
+            session=db_session, 
+            provider="Provider X"
+        )
+        expected_names = {"Elec Plan A", "Mobile Plan C", "Internet Plan F"}
+        actual_names = {p.name for p in provider_x_products}
+        assert actual_names == expected_names
+
+    @pytest.mark.asyncio
+    async def test_search_available_only(self, db_session, test_products):
+        """Test filtering by availability"""
+        await store_standardized_data(session=db_session, data=test_products)
+        
+        # Test available only
+        available_products = await search_and_filter_products(
+            session=db_session, 
+            available_only=True
+        )
+        expected_names = {"Elec Plan A", "Mobile Plan C", "Internet Plan F", "Mobile Plan D", "Internet Plan E"}
+        actual_names = {p.name for p in available_products}
+        assert actual_names == expected_names
+
+# === API TESTS ===
+
+class TestAPI:
+    """Test FastAPI endpoints"""
+
+    def test_search_endpoint_no_filters(self, api_client, test_products, db_session):  # Inject db_session
+        """Test search endpoint without filters"""
+        # Setup data first
+        try:
+            asyncio.run(store_standardized_data(session=db_session, data=test_products))
+        except Exception as e:
+            print(f"Error setting up data: {e}")
+            raise  # Re-raise the exception
+
+        # Test API
+        response = api_client.get("/search")
+        assert response.status_code == 200
+
+        data = response.json()
+        assert len(data) == len(test_products)
+
+        # Check response structure
+        if data:
+            sample = data[0]
+            required_fields = ["source_url", "category", "name", "provider_name"]
+            for field in required_fields:
+                assert field in sample
+
+    def test_search_endpoint_with_filters(self, api_client, test_products, db_session): # Inject db_session
+        """Test search endpoint with various filters"""
+        # Setup data
+        try:
+            asyncio.run(store_standardized_data(session=db_session, data=test_products))
+        except Exception as e:
+            print(f"Error setting up data: {e}")
+            raise
+
+        # Test category filter
+        response = api_client.get("/search?product_type=electricity_plan")
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data) == 2  # Should have 2 electricity plans
+
+        # Test provider filter
+        response = api_client.get("/search?provider=Provider X")
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data) == 3  # Should have 3 products from Provider X
+
+    def test_search_endpoint_empty_database(self, api_client):
+        """Test search endpoint with empty database"""
+        # Don't add any test data
+        response = api_client.get("/search")
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data) == 0
+
+# === INTEGRATION TESTS ===
+
+class TestIntegration:
+    """Integration tests combining multiple components"""
+    
+    @pytest.mark.asyncio
+    async def test_full_workflow_electricity_plans(self, db_session):
+        """Test complete workflow for electricity plan data"""
+        # Create electricity-specific test data
+        electricity_products = [
+            StandardizedProduct(
+                source_url="https://energy-provider.com/green-fixed",
+                category="electricity_plan",
+                name="Green Fixed Rate",
+                provider_name="GreenEnergy Co",
+                price_kwh=0.18,
+                standing_charge=8.50,
+                contract_duration_months=24,
+                contract_type="fixed",
+                available=True,
+                raw_data={
+                    "tariff_type": "green",
+                    "source": "renewable",
+                    "exit_fees": 0
+                }
+            ),
+            StandardizedProduct(
+                source_url="https://energy-provider.com/variable-standard",
+                category="electricity_plan",
+                name="Standard Variable",
+                provider_name="PowerCorp Ltd",
+                price_kwh=0.16,
+                standing_charge=12.00,
+                contract_duration_months=0,
+                contract_type="variable",
+                available=True,
+                raw_data={
+                    "tariff_type": "standard",
+                    "price_cap": True,
+                    "exit_fees": 30
+                }
+            )
+        ]
+        
+        # Store data
+        await store_standardized_data(session=db_session, data=electricity_products)
+        
+        # Test various searches
+        all_electricity = await search_and_filter_products(
+            session=db_session,
+            product_type="electricity_plan"
+        )
+        assert len(all_electricity) == 2
+
+# === PERFORMANCE AND EDGE CASE TESTS ===
+
+class TestEdgeCases:
+    """Test edge cases and error conditions"""
+    
+    @pytest.mark.asyncio
+    async def test_infinity_values_handling(self, db_session):
+        """Test handling of infinity values in database"""
+        infinity_products = [
+            StandardizedProduct(
+                source_url="https://example.com/infinity_test",
+                category="mobile_plan",
+                name="Infinity Test Plan",
+                provider_name="Test Provider",
+                data_gb=float("inf"),
+                calls=float("inf"),
+                texts=float("inf"),
+                monthly_cost=50.0,
+                raw_data={"test": "infinity_values"}
+            )
+        ]
+        
+        await store_standardized_data(session=db_session, data=infinity_products)
+        
+        # Test that infinity values are stored and retrieved correctly
+        results = await search_and_filter_products(session=db_session)
+        assert len(results) == 1
+        product = results[0]
+        assert product.data_gb == float("inf")
+        assert product.calls == float("inf")
+        assert product.texts == float("inf")
+    
+    @pytest.mark.asyncio
+    async def test_empty_string_and_none_values(self, db_session):
+        """Test handling of empty strings and None values"""
+        edge_case_products = [
+            StandardizedProduct(
+                source_url="https://example.com/edge_case",
+                category="electricity_plan",
+                name="Edge Case Plan",
+                provider_name="",  # Empty string
+                price_kwh=0.15,
+                contract_type=None,  # None value
+                raw_data={}  # Empty dict
+            )
+        ]
+        
+        await store_standardized_data(session=db_session, data=edge_case_products)
+        
+        results = await search_and_filter_products(session=db_session)
+        assert len(results) == 1
+        product = results[0]
+        assert product.provider_name == ""
+        assert product.contract_type == None
+        assert product.raw_data == {}
+
+# === ERROR HANDLING TESTS ===
+
+class TestErrorHandling:
+    """Test error handling and robustness"""
+    
+    @pytest.mark.asyncio
+    async def test_malformed_json_in_raw_data(self, db_session):
+        """Test handling of products with malformed JSON in raw_data"""
+        # This test simulates what might happen if raw_data JSON gets corrupted
+        from unittest.mock import patch
+        
+        test_product = StandardizedProduct(
+            source_url="https://example.com/json_test",
+            category="test_plan",
+            name="JSON Test Plan",
+            provider_name="Test Provider",
+            raw_data={"valid": "json"}
+        )
+        
+        await store_standardized_data(session=db_session, data=test_product)
+        
+        # Manually corrupt the JSON in database (simulate corruption)
+        from sqlalchemy import text
+        await db_session.execute(
+            text("UPDATE productdb SET raw_data_json = '{invalid json' WHERE name = 'JSON Test Plan'")
+        )
+        await db_session.commit()
+        
+        # Should handle corrupted JSON gracefully
+        results = await search_and_filter_products(session=db_session)
+        assert len(results) == 1
+        # raw_data should default to empty dict when JSON is invalid
+        product = results[0]
+        assert isinstance(product.raw_data, dict)
+
+# === API ERROR TESTS ===
+
+class TestAPIErrors:
+    """Test API error conditions"""
+    
+    def test_api_with_database_error(self, api_client, db_session): # Inject db_session
+        """Test API behavior when database has issues"""
+        # This test ensures API handles database errors gracefully
+        # Test with empty/uninitialized database
+        response = api_client.get("/search")
+        # Should return 200 with empty list, not crash
+        assert response.status_code == 200
+        data = response.json()
+        assert isinstance(data, list)
+
+# === MAIN EXECUTION ===
+
+if __name__ == "__main__":
+    print("=== Running Comprehensive Test Suite ===")
+    
+    # Run basic unit tests first
+    parser_tests = TestDataParserFunctions()
+    
+    try:
+        parser_tests.test_extract_float_with_units()
+        print("✓ Float extraction test passed")
+    except Exception as e:
+        print(f"✗ Float extraction test failed: {e}")
+    
+    try:
+        parser_tests.test_extract_float_or_handle_unlimited()
+        print("✓ Unlimited handling test passed")
+    except Exception as e:
+        print(f"✗ Float extraction test failed: {e}")
+    
+    try:
+        parser_tests.test_parse_availability()
+        print("✓ Availability parsing test passed")
+    except Exception as e:
+        print(f"✗ Float extraction test failed: {e}")
+    
+    print("\n=== Test Suite Structure ===")
+    print("1. Unit Tests for Helper Functions")
+    print("   - Float extraction with units")
+    print("   - Unlimited value handling")
+    print("   - Duration extraction")
+    print("   - Availability parsing")
+    print()
+    print("2. Database Tests")
+    print("   - Session creation and management")
+    print("   - Data storage and retrieval")
+    print()
+    print("3. Search and Filter Tests")
+    print("   - All products search")
+    print("   - Category filtering")
+    print("   - Provider filtering")
+    print("   - Availability filtering")
+    print()
+    print("4. API Tests")
+    print("   - Basic endpoint functionality")
+    print()
+    print("5. Integration Tests")
+    print("   - Full workflow for electricity plans")
+    print()
+    print("6. Edge Cases and Performance Tests")
+    print("   - Infinity values handling")
+    print("   - Empty/None values handling")
+    print()
+    print("7. Error Handling Tests")
+    print("   - Malformed JSON handling")
+    print("   - API error conditions")
+    print()
+    print("To run full test suite:")
+    print("pytest test_api_complete.py -v --asyncio-mode=auto")
+    print()
