@@ -14,6 +14,30 @@
    ├── test_data_parser.py
 
 
+************DEPLOY***********
+
+Быстрый старт:
+
+# 1. Клонировать и настроить
+git clone <repo>
+cd ai-aggregator
+
+# 2. Автоматическая настройка
+python setup_development.py
+
+# 3. Или использовать Docker
+make docker-dev
+
+# 4. Запустить сервис
+make dev
+
+
+**********
+# Checking the Python and pip versions: 
+# Sometimes the problem may be that you are using the wrong version of Python or php. Make sure that you are working with the version where the required package is installed. You can check the versions with the command:
+   
+   python --version
+   pip --version
 
 
 # To run this FastAPI application:
@@ -22,6 +46,17 @@
   2.1 pip install fastapi uvicorn pydantic requests sqlmodel aiosqlite
   2.2 pip install python-dotenv
   2.3 pip install pytest-asyncio (for run test)
+  2.4 pip install psutil
+  2.5 pip install hypothesis
+  2.6 pip install PyYAML
+  2.7 pip install dotenv
+  2.8 pip install aiofiles
+  2.9 pip ipip install redis
+ 2.10 pip install --upgrade pip setuptools
+ 2.11 pip install slowapi
+ 2.12.pip install prometheus_client
+
+
 
 
 # 3. Run from your terminal: uvicorn main:app --reload
@@ -35,11 +70,32 @@ uvicorn main:app --reload
 
    RUN TESTS
 *****************
+# Запуск каждого файла отдельно с детальной отчетностью
+
+pytest tests/tests_api_Version18_11_8_pydantic2-ok.py  -v --asyncio-mode=auto  --tb=short
+pytest tests/tests_api_Version18_12_pydantic2-ok.py  -v --asyncio-mode=auto  --tb=short
+pytest tests/tests_api_Version19_pydantic2-ok.py  -v --asyncio-mode=auto  --tb=short
+pytest tests/tests_api_Version24_02_pydantic2-ok.py  -v --asyncio-mode=auto  --tb=short
+
+pytest tests/conftest.py  -v --asyncio-mode=auto  --tb=short
+
+pytest tests/test_converters_and_validation-ok.py  -v --asyncio-mode=auto  --tb=short
+pytest tests/test_data_storage-ok.py  -v --asyncio-mode=auto  --tb=short
+pytest tests/test_validation.py  -v --asyncio-mode=auto  --tb=short
+pytest tests/test_import.py  -v --asyncio-mode=auto  --tb=short
+
+# Включая performance тесты
+pytest tests/tests_api_pydantic2_performance-ok.py  -v --asyncio-mode=auto  --tb=short
+
+*******************
+## pytest tests/test_api-ok.py -v --asyncio-mode=auto -error!!
+-------------
 
 pytest tests_api_Version18-3.py -v --asyncio-mode=auto
 
 pip install pytest-asyncio
 
+***run all tests
 pytest tests/
 
 pytest tests/ --asyncio-mode=auto

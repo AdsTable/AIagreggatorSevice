@@ -1,0 +1,44 @@
+openai:
+  api_key: ${OPENAI_API_KEY}
+  endpoint: https://api.openai.com/v1
+  model: gpt-3.5-turbo
+
+#openai:
+#  api_key: ${OPENAI_API_KEY}
+#  endpoint: https://api.openai.com/v1
+#  model: gpt-4o
+
+yandexgpt:
+  api_key: ${YANDEX_GPT_KEY}
+  endpoint: https://llm.api.cloud.yandex.net
+  model: yandexgpt-lite
+
+together:
+  api_key: ${TOGETHER_API_KEY}
+  endpoint: https://api.together.xyz/v1/completions
+  model: mistralai/Mixtral-8x7B-Instruct-v0.1
+
+huggingface:
+  api_key: ${HUGGINGFACE_API_KEY}
+  endpoint: https://api-inference.huggingface.co/models/google/gemma-2b-it
+
+ollama:
+  endpoint: http://localhost:11434/api/generate
+  model: mistral
+
+tibber:
+  api_key: ${TIBBER_API_KEY}
+  endpoint: https://api.tibber.com/v1-beta/gpt
+  model: gpt
+
+wenxin:
+  api_key: ${WENXIN_API_KEY}
+  endpoint: https://wenxin.baidu.com/api/v1/llm/chat
+  model: ERNIE-Bot
+
+moonshot:
+  api_key: ${MOONSHOT_API_KEY}
+  endpoint: https://api.moonshot.cn/v1/chat/completions
+  model: moonshot-v1-8k
+  
+  

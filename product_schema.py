@@ -1,6 +1,6 @@
 # product_schema.py
 from pydantic import BaseModel, HttpUrl, RootModel, ValidationError
-from typing import List, Dict, Optional, Any
+from typing import List, Dict, Optional, Any, AsyncGenerator
 
 class RawData(RootModel[Dict[str, Any]]):
     """Root model for raw_data - a dictionary with arbitrary keys and values."""

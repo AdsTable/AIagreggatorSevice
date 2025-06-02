@@ -1,11 +1,15 @@
-# conftest.py - Shared fixtures for all tests
+# conftest.py
+import pytest
 import pytest
 import pytest_asyncio
+import asyncio
 import sys
 import os
 import math
 import json
-from typing import List, Optional, AsyncGenerator
+from httpx import AsyncClient, ASGITransport
+from fastapi.testclient import TestClient
+from typing import List, Dict, Any, Optional, AsyncGenerator
 
 # Add the parent directory to path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -278,3 +282,52 @@ async def search_and_filter_products(
         standardized_products.append(standardized_product)
     
     return standardized_products
+# --- MODERN HTTP CLIENT FIXTURES AND HELPERS ---
+
+@pytest.fixture(scope="function")
+def event_loop():
+    """Create an instance of the default event loop for the test session."""
+    loop = asyncio.new_event_loop()
+    yield loop
+    loop.close()
+
+@pytest.fixture(scope="function")
+async def async_client():
+    """Modern async HTTP client (httpx + FastAPI ASGITransport)."""
+    from main import app
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://testserver") as client:
+        yield client
+
+@pytest.fixture(scope="function")
+def sync_client():
+    """Synchronous HTTP client for simple tests."""
+    from main import app
+    return TestClient(app)
+
+def create_json_request(data: Dict[str, Any]) -> Dict[str, Any]:
+    """Create properly formatted JSON request for httpx."""
+    return {
+        "json": data,
+        "headers": {"Content-Type": "application/json"}
+    }
+
+def create_text_request(content: str) -> Dict[str, Any]:
+    """Create properly formatted text request for httpx."""
+    return {
+        "content": content,
+        "headers": {"Content-Type": "text/plain"}
+    }
+
+def encode_url_params(params: Dict[str, Any]) -> str:
+    """Encode URL parameters using %20 for spaces (future-proof, v4.0+)."""
+    from urllib.parse import urlencode, quote_plus
+    encoded_params = []
+    for key, value in params.items():
+        if value is not None:
+            encoded_key = quote_plus(str(key)).replace('+', '%20')
+            encoded_value = quote_plus(str(value)).replace('+', '%20')
+            encoded_params.append(f"{encoded_key}={encoded_value}")
+    return "&".join(encoded_params)
+
+# --- END MODERN HTTP CLIENT SECTION ---    

@@ -1,3 +1,4 @@
+# flexible_api.py
 from fastapi import FastAPI, Query, HTTPException
 from typing import Optional, Union
 

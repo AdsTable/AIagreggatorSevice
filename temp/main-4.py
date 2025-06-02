@@ -1,4 +1,4 @@
-# main.py - Python 3.13 Compatible AI Aggregator Pro
+# main.py - Next-gen AI Aggregator Service: Cost-optimized, High-performance, Production-ready
 from __future__ import annotations
 
 import json
@@ -17,16 +17,8 @@ from dataclasses import dataclass, field
 import hashlib
 import yaml
 import aiofiles
-from enum import Enum
 
-# Enhanced imports with performance monitoring
-from performance_monitor import (
-    PerformanceMonitor, PerformanceThresholds, OperationType,
-    monitor_performance, monitor_ai_operation, monitor_cache_operation,
-    get_performance_monitor, set_performance_monitor, get_performance_stats
-)
-
-# Redis imports with Python 3.13 compatibility
+# Redis imports - using modern redis-py with async support
 try:
     from redis.asyncio import Redis
     REDIS_AVAILABLE = True
@@ -55,13 +47,13 @@ from pydantic import BaseModel, ConfigDict, field_validator, computed_field
 # Database and async imports
 from sqlalchemy.ext.asyncio import AsyncSession
 
-# Modern rate limiting implementation - replacing SlowAPI
-import asyncio
-from collections import defaultdict
-from typing import Dict, Tuple
-import time
+# Rate limiting and monitoring
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 
-# Prometheus metrics (optional)
+# Prometheus metrics (free monitoring solution)
 try:
     from prometheus_client import Counter, Histogram, Gauge, generate_latest
     METRICS_AVAILABLE = True
@@ -76,7 +68,7 @@ try:
 except ImportError:
     METRICS_AVAILABLE = False
 
-# Import business logic modules with error handling
+# Import business logic modules - with error handling
 try:
     from services.ai_async_client import AIAsyncClient
 except ImportError as e:
@@ -108,103 +100,6 @@ logger = logging.getLogger(__name__)
 # Load environment variables
 load_dotenv()
 
-# --- Modern Rate Limiter Implementation ---
-class ModernRateLimiter:
-    """
-    Python 3.13 compatible rate limiter with sliding window algorithm
-    """
-    
-    def __init__(self):
-        self.requests: Dict[str, List[float]] = defaultdict(list)
-        self.locks: Dict[str, asyncio.Lock] = defaultdict(asyncio.Lock)
-    
-    async def is_allowed(self, key: str, limit: int, window: int = 60) -> bool:
-        """
-        Check if request is allowed based on rate limit
-        
-        Args:
-            key: Unique identifier (IP, user ID, etc.)
-            limit: Maximum requests allowed
-            window: Time window in seconds
-        
-        Returns:
-            True if request is allowed, False otherwise
-        """
-        current_time = time.time()
-        
-        async with self.locks[key]:
-            # Clean old requests outside the window
-            self.requests[key] = [
-                req_time for req_time in self.requests[key]
-                if current_time - req_time < window
-            ]
-            
-            # Check if under limit
-            if len(self.requests[key]) < limit:
-                self.requests[key].append(current_time)
-                return True
-            
-            return False
-    
-    def get_remaining(self, key: str, limit: int, window: int = 60) -> int:
-        """Get remaining requests in current window"""
-        current_time = time.time()
-        recent_requests = [
-            req_time for req_time in self.requests.get(key, [])
-            if current_time - req_time < window
-        ]
-        return max(0, limit - len(recent_requests))
-
-# Global rate limiter instance
-rate_limiter = ModernRateLimiter()
-
-# --- Rate Limiting Decorator ---
-def rate_limit(requests_per_minute: int = 60):
-    """
-    Modern rate limiting decorator compatible with Python 3.13
-    """
-    def decorator(func: Callable) -> Callable:
-        @wraps(func)
-        async def wrapper(*args, **kwargs):
-            # Extract request from args
-            request: Optional[Request] = None
-            for arg in args:
-                if isinstance(arg, Request):
-                    request = arg
-                    break
-            
-            if not request:
-                # If no request found, allow the call
-                return await func(*args, **kwargs)
-            
-            # Get client identifier
-            client_ip = request.client.host if request.client else "unknown"
-            rate_limit_key = f"rate_limit:{client_ip}:{func.__name__}"
-            
-            # Check rate limit
-            is_allowed = await rate_limiter.is_allowed(
-                rate_limit_key, 
-                requests_per_minute, 
-                60
-            )
-            
-            if not is_allowed:
-                remaining = rate_limiter.get_remaining(rate_limit_key, requests_per_minute, 60)
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded. Try again later. Remaining: {remaining}",
-                    headers={"Retry-After": "60"}
-                )
-            
-            # Record metrics if available
-            if METRICS_AVAILABLE:
-                REQUEST_COUNT.labels(provider='system', status='allowed').inc()
-            
-            return await func(*args, **kwargs)
-        
-        return wrapper
-    return decorator
-
 # --- Enhanced Configuration Management ---
 @dataclass
 class DatabaseConfig:
@@ -221,7 +116,7 @@ class RedisConfig:
     max_connections: int = int(os.getenv('REDIS_MAX_CONNECTIONS', '20'))
     socket_timeout: float = float(os.getenv('REDIS_SOCKET_TIMEOUT', '5.0'))
     encoding: str = 'utf-8'
-    decode_responses: bool = False
+    decode_responses: bool = False  # For binary data support
 
 @dataclass
 class SecurityConfig:
@@ -243,21 +138,21 @@ class AIConfig:
     request_timeout: int = int(os.getenv('AI_REQUEST_TIMEOUT', '45'))
     max_prompt_length: int = int(os.getenv('MAX_PROMPT_LENGTH', '32000'))
     
+    # Cost optimization settings
     free_tier_limits: Dict[str, int] = field(default_factory=lambda: {
-        'ollama': 999999,
-        'huggingface': 1000,
-        'together': 25,
-        'openai': 3,
+        'ollama': 999999,     # Unlimited local
+        'huggingface': 1000,  # High free tier
+        'together': 25,       # Good free tier
+        'openai': 3,          # Limited free tier
     })
 
 @dataclass
 class AppConfig:
-    """Main application configuration with Python 3.13 optimizations"""
+    """Main application configuration"""
     app_name: str = os.getenv('APP_NAME', 'AI Aggregator Pro')
-    version: str = '3.2.0'  # Updated for Python 3.13 compatibility
+    version: str = '3.1.0'
     environment: str = os.getenv('ENVIRONMENT', 'development')
     debug: bool = os.getenv('DEBUG', 'false').lower() == 'true'
-    python_version: str = f"{__import__('sys').version_info.major}.{__import__('sys').version_info.minor}"
     
     # Feature flags
     enable_cache: bool = REDIS_AVAILABLE and os.getenv('ENABLE_CACHE', 'true').lower() == 'true'
@@ -265,8 +160,8 @@ class AppConfig:
     enable_metrics: bool = METRICS_AVAILABLE and os.getenv('ENABLE_METRICS', 'true').lower() == 'true'
     
     # Cache settings
-    cache_ttl_short: int = int(os.getenv('CACHE_TTL_SHORT', '900'))
-    cache_ttl_long: int = int(os.getenv('CACHE_TTL_LONG', '3600'))
+    cache_ttl_short: int = int(os.getenv('CACHE_TTL_SHORT', '900'))   # 15 minutes
+    cache_ttl_long: int = int(os.getenv('CACHE_TTL_LONG', '3600'))    # 1 hour
     
     # Sub-configurations
     database: DatabaseConfig = field(default_factory=DatabaseConfig)
@@ -285,7 +180,7 @@ class CircuitBreaker:
     recovery_timeout: int = 60
     failure_count: int = 0
     last_failure_time: Optional[float] = None
-    state: str = "CLOSED"
+    state: str = "CLOSED"  # CLOSED, OPEN, HALF_OPEN
     
     def is_request_allowed(self) -> bool:
         """Check if request is allowed based on circuit breaker state"""
@@ -331,6 +226,7 @@ class AdvancedCache:
                 decompressed = gzip.decompress(data)
                 return pickle.loads(decompressed)
             except gzip.BadGzipFile:
+                # Fallback for non-compressed data
                 return pickle.loads(data)
         return pickle.loads(data)
     
@@ -366,12 +262,13 @@ class AdvancedCache:
 class TokenOptimizer:
     """Advanced token counting and optimization utilities"""
     
+    # Provider-specific token multipliers (characters per token)
     TOKEN_MULTIPLIERS = {
         "openai": 4.0,
         "moonshot": 4.0,
-        "together": 3.6,
+        "together": 3.6,    # Slightly more efficient
         "huggingface": 3.2,
-        "ollama": 2.8,
+        "ollama": 2.8,      # Local, more efficient
         "claude": 4.2,
     }
     
@@ -392,12 +289,15 @@ class TokenOptimizer:
         if estimated_tokens <= max_tokens:
             return prompt
         
+        # Calculate reduction ratio
         reduction_ratio = max_tokens / estimated_tokens
         keep_length = int(len(prompt) * reduction_ratio)
         
-        if keep_length < 200:
+        if keep_length < 200:  # Minimum viable prompt
             return prompt[:200] + "..."
         
+        # Advanced optimization: keep important parts
+        # Keep first 60% and last 40% to preserve context
         first_part_len = int(keep_length * 0.6)
         last_part_len = int(keep_length * 0.4)
         
@@ -411,12 +311,21 @@ class ResourceManager:
     """Centralized resource management with proper cleanup"""
     
     def __init__(self):
+        # Configuration cache
         self.ai_config_cache: Optional[Dict[str, Any]] = None
         self.config_last_modified: Optional[float] = None
+        
+        # Core services
         self.ai_client_instance: Optional[AIAsyncClient] = None
         self.redis_client: Optional[Redis] = None
+        
+        # Concurrency control
         self.ai_semaphore: Optional[asyncio.Semaphore] = None
+        
+        # Circuit breakers for each provider
         self.circuit_breakers: Dict[str, CircuitBreaker] = {}
+        
+        # Statistics tracking
         self.request_stats: Dict[str, Dict[str, Any]] = {}
     
     async def initialize_redis(self) -> Optional[Redis]:
@@ -426,6 +335,7 @@ class ResourceManager:
             return None
         
         try:
+            # Use modern redis-py async client
             if hasattr(Redis, 'from_url'):
                 redis_client = Redis.from_url(
                     config.redis.url,
@@ -435,6 +345,7 @@ class ResourceManager:
                     socket_timeout=config.redis.socket_timeout
                 )
             else:
+                # Fallback for older versions
                 redis_client = Redis(
                     host='localhost',
                     port=6379,
@@ -443,6 +354,7 @@ class ResourceManager:
                     decode_responses=config.redis.decode_responses
                 )
             
+            # Test connection
             await redis_client.ping()
             self.redis_client = redis_client
             logger.info("✅ Redis connection established")
@@ -465,8 +377,10 @@ class ResourceManager:
                 logger.error("No AI configuration available")
                 return None
             
+            # Create AI client instance
             self.ai_client_instance = AIAsyncClient(ai_config)
             
+            # Initialize circuit breakers for each provider
             for provider in ai_config.keys():
                 self.circuit_breakers[provider] = CircuitBreaker()
                 self.request_stats[provider] = {
@@ -495,6 +409,7 @@ class ResourceManager:
         
         current_mtime = config_path.stat().st_mtime
         
+        # Check if reload is needed
         if (not force_reload and self.ai_config_cache and 
             self.config_last_modified == current_mtime):
             return self.ai_config_cache
@@ -505,24 +420,29 @@ class ResourceManager:
             
             cfg = yaml.safe_load(content) or {}
             
+            # Enhanced environment variable substitution with validation
             for provider, settings in cfg.items():
                 if not isinstance(settings, dict):
                     continue
                 
+                # Add default free tier settings
                 if provider in config.ai.free_tier_limits:
                     settings.setdefault('daily_limit', str(config.ai.free_tier_limits[provider]))
                     settings.setdefault('priority', 'high' if provider == 'ollama' else 'medium')
                 
+                # Process environment variables
                 for key, value in list(settings.items()):
                     if isinstance(value, str) and value.startswith("${") and value.endswith("}"):
                         env_key = value[2:-1]
                         env_value = os.getenv(env_key)
                         if env_value is None:
                             logger.warning(f"Environment variable {env_key} not found for {provider}.{key}")
+                            # Remove the setting rather than keeping placeholder
                             del settings[key]
                         else:
                             settings[key] = env_value
                     
+                    # Ensure numeric values are properly typed
                     elif key in ['max_tokens', 'timeout', 'rate_limit', 'priority_score']:
                         try:
                             settings[key] = int(value) if isinstance(value, str) else value
@@ -551,7 +471,7 @@ class ResourceManager:
         return self.ai_semaphore
     
     async def cleanup(self):
-        """Cleanup all resources with Python 3.13 exception handling"""
+        """Cleanup all resources"""
         cleanup_tasks = []
         
         if self.ai_client_instance and hasattr(self.ai_client_instance, 'aclose'):
@@ -562,124 +482,11 @@ class ResourceManager:
         
         if cleanup_tasks:
             try:
-                # Python 3.13 compatible exception handling
-                results = await asyncio.gather(*cleanup_tasks, return_exceptions=True)
-                for result in results:
-                    if isinstance(result, Exception):
-                        logger.error(f"Error during cleanup: {result}")
-            except* Exception as eg:  # Python 3.13 exception groups
-                for exc in eg.exceptions:
-                    logger.error(f"Cleanup exception: {exc}")
+                await asyncio.gather(*cleanup_tasks, return_exceptions=True)
+            except Exception as e:
+                logger.error(f"Error during cleanup: {e}")
         
         logger.info("✅ Resource cleanup completed")
-
-class OperationType(Enum):
-    """Types of operations for specialized monitoring"""
-    AI_REQUEST = "ai_request"
-    CACHE_OPERATION = "cache_operation"
-    DATABASE_OPERATION = "database_operation"
-    NETWORK_OPERATION = "network_operation"
-    COMPUTATION = "computation"
-
-@dataclass
-class OperationMetrics:
-    """Comprehensive operation metrics"""
-    operation_name: str
-    operation_type: OperationType
-    start_time: float
-    end_time: Optional[float] = None
-    duration: Optional[float] = None
-    success: bool = False
-    error: Optional[Exception] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
-
-    def finalize(self, success: bool = True, error: Optional[Exception] = None) -> None:
-        """Finalize metrics calculation"""
-        self.end_time = time.time()
-        self.duration = self.end_time - self.start_time
-        self.success = success
-        self.error = error
-
-class Metrics:
-    def __init__(self, app_name: str):
-        self.app_name = app_name
-        self.active_operations = {}
-
-    def record_operation(self, metrics: OperationMetrics) -> None:
-        # Логика для записи операционных метрик
-        print(f"Recording metrics for operation: {metrics.operation_name}")
-
-    def increment_counter(self, name: str, labels: Dict[str, str]) -> None:
-        # Логика для увеличения счетчика метрик
-        pass
-
-    def observe_histogram(self, name: str, value: float, labels: Dict[str, str]) -> None:
-        # Логика для наблюдения за значениями гистограммы
-         pass
-
-# Пример использования класса Metrics с правильным аргументом
-metrics_collector = Metrics(app_name="AI Aggregator Pro")  
-
-# Создаем экземпляр мониторинга производительности
-monitor = PerformanceMonitor(metrics_collector)
-
-# Пример вызова monitor_operation
-async def main():
-    async with monitor.monitor_operation("example_operation", OperationType.COMPUTATION):
-        pass  # Здесь можно выполнять какую-либо логику операции
-
-# Запускаем асинхронную функцию
-# asyncio.run(main())  # Раскомментарьте, чтобы запустить при необходимости
-        
-
-class PerformanceMonitor:
-    def __init__(self, metrics_collector: Metrics):
-        self.metrics_collector = metrics_collector
-        self.active_operations = {}
-
-    def _generate_operation_id(self) -> str:
-        return str(id(self))
-
-    async def monitor_operation(self, 
-                                operation_name: str,
-                                operation_type: OperationType = OperationType.COMPUTATION,
-                                metadata: Dict[str, Any] = None):
-        """Context manager for monitoring operations"""
-        operation_id = self._generate_operation_id()
-        
-        metrics = OperationMetrics(
-            operation_name=operation_name,
-            operation_type=operation_type,
-            start_time=time.time(),
-            metadata=metadata or {}
-        )
-        
-        self.active_operations[operation_id] = metrics
-        
-        try:
-            if hasattr(self.metrics_collector, 'active_operations'):
-                self.metrics_collector.active_operations[operation_type.value] = self.metrics_collector.active_operations.get(operation_type.value, 0) + 1
-            
-            yield metrics
-            
-            metrics.finalize(success=True)
-            
-        except Exception as e:
-            logger.error(f"Exception in {operation_name}: {e}")
-            metrics.finalize(success=False, error=e)
-            raise
-            
-        finally:
-            self.active_operations.pop(operation_id, None)
-            if hasattr(self.metrics_collector, 'active_operations'):
-                self.metrics_collector.active_operations[operation_type.value] -= 1
-            
-            self.metrics_collector.record_operation(metrics)
-
-
-metrics_collector = Metrics(app_name="AI Aggregator Pro")
-monitor = PerformanceMonitor(metrics_collector)
-
 
 # Global resource manager
 resources = ResourceManager()
@@ -687,13 +494,12 @@ resources = ResourceManager()
 # --- Utility Functions ---
 def generate_cache_key(prefix: str, *args, **kwargs) -> str:
     """Generate consistent cache key"""
+    # Convert all arguments to strings and sort kwargs for consistency
     args_str = ':'.join(str(arg) for arg in args)
     kwargs_str = ':'.join(f'{k}={v}' for k, v in sorted(kwargs.items()))
     
     key_data = f"{prefix}:{args_str}:{kwargs_str}"
     return hashlib.sha256(key_data.encode()).hexdigest()[:32]
-
-config = Metrics(app_name="AI Aggregator Pro")
 
 def monitor_performance(operation_name: str):
     """Decorator for performance monitoring"""
@@ -708,25 +514,23 @@ def monitor_performance(operation_name: str):
                 operation_success = True
                 return result
             except Exception as e:
-                # Обработка исключений. Это блок обработает как обычные, так и исключения групп
+                # Record error metrics
                 if config.enable_metrics:
                     provider = kwargs.get('provider', 'unknown')
-                    Metrics.REQUEST_COUNT['labels'](provider=provider, status='error')
-                
-                # Логируем неуспех операции
-                logger.error(f"Operation {operation_name} failed with exception: {e}")
-                raise  # Перекидываем вверх исключение для дальнейшей обработки
-            
+                    REQUEST_COUNT.labels(provider=provider, status='error').inc()
+                raise
             finally:
                 duration = time.time() - start_time
                 
+                # Record performance metrics
                 if config.enable_metrics:
-                    Metrics.REQUEST_DURATION['observe'](duration)
+                    REQUEST_DURATION.observe(duration)
                     if operation_success:
                         provider = kwargs.get('provider', 'unknown')
-                        Metrics.REQUEST_COUNT['labels'](provider=provider, status='success')
+                        REQUEST_COUNT.labels(provider=provider, status='success').inc()
                 
-                if duration > 5.0:
+                # Log slow operations
+                if duration > 5.0:  # 5 second threshold
                     logger.warning(f"Slow operation {operation_name}: {duration:.2f}s")
         
         return wrapper
@@ -736,12 +540,12 @@ def monitor_performance(operation_name: str):
 class AIRequest(BaseModel):
     """Enhanced AI request model with comprehensive validation"""
     prompt: str
-    provider: str = "auto"
+    provider: str = "auto"  # Allow auto-selection
     max_tokens: Optional[int] = None
     temperature: float = 0.7
     use_cache: bool = True
     optimize_tokens: bool = True
-    priority: str = "medium"
+    priority: str = "medium"  # low, medium, high
     
     model_config = ConfigDict(frozen=True)
 
@@ -784,10 +588,11 @@ class AIRequest(BaseModel):
     def estimated_cost(self) -> float:
         """Estimate request cost based on provider and prompt length"""
         if self.provider in ["ollama", "huggingface", "local"]:
-            return 0.0
+            return 0.0  # Free providers
         
         token_count = TokenOptimizer.estimate_tokens(self.prompt, self.provider)
         
+        # Cost per 1K tokens (USD) - approximate values
         costs = {
             "openai": 0.002,
             "claude": 0.0015,
@@ -798,11 +603,38 @@ class AIRequest(BaseModel):
         
         return (token_count / 1000) * costs.get(self.provider, 0.01)
 
+class IngestionRequest(BaseModel):
+    """Enhanced data ingestion request"""
+    source_identifier: str
+    category: str
+    use_cache: bool = True
+    priority: str = "medium"
+    compression_level: int = 6  # gzip compression level (1-9)
+    
+    model_config = ConfigDict(str_strip_whitespace=True, frozen=True)
+
+    @field_validator("category")
+    @classmethod
+    def validate_category(cls, v: str) -> str:
+        allowed = frozenset([
+            "electricity_plan", "mobile_plan", "internet_plan", 
+            "broadband_plan", "energy_plan", "telecom_plan"
+        ])
+        if v not in allowed:
+            raise ValueError(f"Category must be one of: {list(allowed)}")
+        return v
+
+    @field_validator("compression_level")
+    @classmethod
+    def validate_compression_level(cls, v: int) -> int:
+        if not 1 <= v <= 9:
+            raise ValueError("Compression level must be between 1 and 9")
+        return v
+
 class HealthResponse(BaseModel):
     """Comprehensive health check response"""
     status: str
     version: str
-    python_version: str
     timestamp: datetime
     ai_client_ready: bool
     ai_providers_status: Dict[str, str]
@@ -821,11 +653,13 @@ async def select_optimal_provider(request: AIRequest, available_providers: List[
     """Select optimal provider based on multiple factors"""
     
     if request.provider != "auto":
+        # Validate specific provider is available
         if request.provider in available_providers:
             return request.provider
         else:
             logger.warning(f"Requested provider {request.provider} not available, using auto-selection")
     
+    # Filter by circuit breaker status
     healthy_providers = []
     for provider in available_providers:
         circuit_breaker = resources.circuit_breakers.get(provider)
@@ -838,56 +672,61 @@ async def select_optimal_provider(request: AIRequest, available_providers: List[
             detail="No healthy AI providers available"
         )
     
+    # Scoring algorithm
     scores = {}
     for provider in healthy_providers:
         score = 0
         
+        # Cost optimization (prioritize free providers)
         if provider in config.ai.free_tier_limits:
-            if config.ai.free_tier_limits[provider] > 1000:
+            if config.ai.free_tier_limits[provider] > 1000:  # High free limit
                 score += 100
             else:
                 score += 80
         else:
-            score += 20
+            score += 20  # Paid providers get lower base score
         
+        # Performance factors
         performance_scores = {
-            'ollama': 90,
-            'huggingface': 75,
-            'together': 70,
-            'claude': 65,
-            'openai': 60,
-            'moonshot': 55,
+            'ollama': 90,      # Local is fastest
+            'huggingface': 75, # Good free option
+            'together': 70,    # Good API performance
+            'claude': 65,      # Quality but slower
+            'openai': 60,      # Reliable but expensive
+            'moonshot': 55,    # Newer option
         }
         score += performance_scores.get(provider, 40)
         
+        # Priority adjustments
         if request.priority == "high":
             if provider in ['openai', 'claude']:
-                score += 30
+                score += 30  # Boost premium providers for high priority
         elif request.priority == "low":
             if provider in ['ollama', 'huggingface']:
-                score += 40
+                score += 40  # Boost free providers for low priority
         
+        # Circuit breaker penalty
         circuit_breaker = resources.circuit_breakers.get(provider)
         if circuit_breaker and circuit_breaker.failure_count > 0:
             score -= circuit_breaker.failure_count * 10
         
         scores[provider] = score
     
+    # Select highest scoring provider
     optimal_provider = max(scores, key=scores.get)
     logger.info(f"🎯 Selected provider: {optimal_provider} (score: {scores[optimal_provider]})")
     
     return optimal_provider
 
-# --- Application Lifecycle with Python 3.13 Support ---
+# --- Application Lifecycle ---
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Enhanced application lifecycle management with Python 3.13 compatibility"""
+    """Enhanced application lifecycle management"""
     start_time = time.time()
     app.state.start_time = start_time
     
     logger.info(f"🚀 Starting {config.app_name} v{config.version}")
     logger.info(f"Environment: {config.environment}")
-    logger.info(f"Python version: {config.python_version}")
     logger.info(f"Features: Cache={config.enable_cache}, Metrics={config.enable_metrics}, Compression={config.enable_compression}")
 
     try:
@@ -917,16 +756,21 @@ async def lifespan(app: FastAPI):
 # --- FastAPI Application ---
 app = FastAPI(
     title=config.app_name,
-    description=f"Next-generation AI service optimized for Python {config.python_version}",
+    description="Next-generation AI service with cost optimization and performance focus",
     version=config.version,
     lifespan=lifespan,
     docs_url="/docs" if config.environment != 'production' else None,
     redoc_url="/redoc" if config.environment != 'production' else None
 )
 
-# --- Middleware Stack (Fixed Order) ---
+# Rate limiter
+limiter = Limiter(key_func=get_remote_address)
 
-# Compression middleware (first for response processing)
+# --- Middleware Stack ---
+app.add_middleware(SlowAPIMiddleware)
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# Compression middleware
 if config.enable_compression:
     app.add_middleware(GZipMiddleware, minimum_size=1000)
 
@@ -950,7 +794,7 @@ if config.security.trusted_hosts:
 # --- Core API Endpoints ---
 
 @app.post("/ai/ask")
-@rate_limit(50)  # Using our custom rate limiter
+@limiter.limit("50/minute")
 @monitor_performance("ai_ask")
 async def ai_ask(
     request: Request,
@@ -958,8 +802,9 @@ async def ai_ask(
     background_tasks: BackgroundTasks,
     stream: bool = Query(False, description="Enable streaming response")
 ):
-    """Ultra-optimized AI query with smart provider selection and Python 3.13 compatibility"""
+    """Ultra-optimized AI query with smart provider selection and caching"""
     
+    # Optimize prompt if requested
     optimized_prompt = ai_request.prompt
     if ai_request.optimize_tokens:
         optimized_prompt = TokenOptimizer.optimize_prompt(
@@ -967,16 +812,18 @@ async def ai_ask(
             provider=ai_request.provider
         )
     
+    # Generate cache key
     cache_key = None
     if config.enable_cache and ai_request.use_cache:
         cache_key = generate_cache_key(
-            "ai_ask_v3",  # Updated version for Python 3.13
+            "ai_ask_v2",
             optimized_prompt,
             ai_request.provider,
             ai_request.temperature,
             ai_request.max_tokens or 0
         )
     
+    # Check cache first
     if cache_key and resources.redis_client:
         cached_result = await AdvancedCache.get_cached(resources.redis_client, cache_key)
         if cached_result:
@@ -984,6 +831,7 @@ async def ai_ask(
             cached_result['cached'] = True
             return cached_result
 
+    # Get AI client and configuration
     ai_client = resources.ai_client_instance
     if not ai_client:
         raise HTTPException(status_code=503, detail="AI service not available")
@@ -994,8 +842,10 @@ async def ai_ask(
     if not available_providers:
         raise HTTPException(status_code=503, detail="No AI providers configured")
     
+    # Smart provider selection
     selected_provider = await select_optimal_provider(ai_request, available_providers)
     
+    # Check circuit breaker
     circuit_breaker = resources.circuit_breakers.get(selected_provider)
     if circuit_breaker and not circuit_breaker.is_request_allowed():
         raise HTTPException(
@@ -1003,9 +853,16 @@ async def ai_ask(
             detail=f"Provider {selected_provider} temporarily unavailable"
         )
 
+    # Execute request with concurrency control
     semaphore = resources.get_ai_semaphore()
     async with semaphore:
         try:
+            if stream:
+                # Streaming implementation would go here
+                # For now, fall back to non-streaming
+                pass
+            
+            # Non-streaming response
             answer = await asyncio.wait_for(
                 ai_client.ask(
                     optimized_prompt,
@@ -1016,9 +873,11 @@ async def ai_ask(
                 timeout=config.ai.request_timeout
             )
 
+            # Record success
             if circuit_breaker:
                 circuit_breaker.record_success()
             
+            # Update statistics
             if selected_provider in resources.request_stats:
                 stats = resources.request_stats[selected_provider]
                 stats['total_requests'] += 1
@@ -1034,14 +893,15 @@ async def ai_ask(
                 "cached": False,
                 "tokens_used": token_count,
                 "estimated_cost": estimated_cost,
-                "optimized": ai_request.optimize_tokens,
-                "python_version": config.python_version
+                "optimized": ai_request.optimize_tokens
             }
 
+            # Record metrics
             if config.enable_metrics:
                 TOKEN_USAGE.labels(provider=selected_provider).inc(token_count)
                 REQUEST_COUNT.labels(provider=selected_provider, status='success').inc()
 
+            # Cache response
             if cache_key and resources.redis_client:
                 cache_ttl = (config.cache_ttl_short if token_count < 1000 
                            else config.cache_ttl_long)
@@ -1055,6 +915,7 @@ async def ai_ask(
             if circuit_breaker:
                 circuit_breaker.record_failure()
             
+            # Update error statistics
             if selected_provider in resources.request_stats:
                 resources.request_stats[selected_provider]['failed_requests'] += 1
             
@@ -1065,6 +926,7 @@ async def ai_ask(
             if circuit_breaker:
                 circuit_breaker.record_failure()
             
+            # Update error statistics
             if selected_provider in resources.request_stats:
                 resources.request_stats[selected_provider]['failed_requests'] += 1
             
@@ -1079,12 +941,106 @@ async def _cache_ai_response(cache_key: str, response: Dict[str, Any], ttl: int)
         except Exception as e:
             logger.warning(f"Cache write error: {e}")
 
+@app.post("/ai/batch")
+@limiter.limit("5/minute")
+async def ai_batch(
+    request: Request,
+    prompts: List[str] = Body(..., min_length=1, max_length=50),
+    provider: str = Query("auto", description="AI Provider (auto for smart selection)"),
+    concurrency: int = Query(3, ge=1, le=8, description="Concurrent requests"),
+    priority: str = Query("medium", description="Batch priority")
+):
+    """Smart batch processing with cost optimization"""
+    
+    if not prompts:
+        raise HTTPException(status_code=422, detail="Prompts list cannot be empty")
+
+    ai_client = resources.ai_client_instance
+    if not ai_client:
+        raise HTTPException(status_code=503, detail="AI service not available")
+    
+    ai_config = await resources.load_ai_config()
+    available_providers = list(ai_config.keys())
+    
+    # Provider selection for batch
+    if provider == "auto":
+        # For batch processing, prefer free/local options
+        free_providers = [p for p in available_providers 
+                         if p in config.ai.free_tier_limits and 
+                         config.ai.free_tier_limits[p] > 100]
+        selected_provider = free_providers[0] if free_providers else available_providers[0]
+    else:
+        selected_provider = provider if provider in available_providers else available_providers[0]
+
+    # Concurrency control
+    batch_semaphore = asyncio.Semaphore(min(concurrency, config.ai.max_concurrent_requests))
+
+    async def process_single_prompt(idx: int, prompt: str) -> Dict[str, Any]:
+        """Process individual prompt in batch"""
+        async with batch_semaphore:
+            try:
+                # Optimize prompt for batch processing
+                optimized_prompt = TokenOptimizer.optimize_prompt(prompt, max_tokens=2000)
+                
+                result = await asyncio.wait_for(
+                    ai_client.ask(optimized_prompt, provider=selected_provider),
+                    timeout=config.ai.request_timeout
+                )
+                
+                return {
+                    "index": idx,
+                    "prompt": prompt[:100] + "..." if len(prompt) > 100 else prompt,
+                    "answer": result,
+                    "status": "success",
+                    "tokens_used": TokenOptimizer.estimate_tokens(result, selected_provider)
+                }
+            except Exception as e:
+                logger.error(f"Batch item {idx} error: {e}")
+                return {
+                    "index": idx,
+                    "prompt": prompt[:100] + "..." if len(prompt) > 100 else prompt,
+                    "error": str(e),
+                    "status": "error",
+                    "tokens_used": 0
+                }
+
+    try:
+        # Process all prompts concurrently
+        start_time = time.time()
+        results = await asyncio.gather(
+            *[process_single_prompt(i, prompt) for i, prompt in enumerate(prompts)],
+            return_exceptions=True
+        )
+        
+        processing_time = time.time() - start_time
+        
+        # Calculate statistics
+        successful = sum(1 for r in results if isinstance(r, dict) and r.get("status") == "success")
+        failed = len(results) - successful
+        total_tokens = sum(r.get("tokens_used", 0) for r in results if isinstance(r, dict))
+
+        return {
+            "provider": selected_provider,
+            "batch_size": len(prompts),
+            "successful": successful,
+            "failed": failed,
+            "processing_time_seconds": round(processing_time, 2),
+            "total_tokens_used": total_tokens,
+            "average_tokens_per_request": round(total_tokens / len(prompts), 2) if prompts else 0,
+            "results": results
+        }
+
+    except Exception as e:
+        logger.error(f"Batch processing error: {e}")
+        raise HTTPException(status_code=500, detail=f"Batch processing error: {str(e)}")
+
 @app.get("/health", response_model=HealthResponse)
 async def health_check():
-    """Comprehensive health check with Python 3.13 compatibility"""
+    """Comprehensive health check with detailed status"""
     app_start_time = getattr(app.state, 'start_time', time.time())
     uptime = time.time() - app_start_time
 
+    # Test AI providers
     ai_providers_status = {}
     ai_client_ready = resources.ai_client_instance is not None
     
@@ -1098,6 +1054,7 @@ async def health_check():
                 continue
                 
             try:
+                # Quick health check (avoiding actual AI call to save costs)
                 ai_providers_status[provider] = "configured"
                 if circuit_breaker:
                     circuit_breaker.record_success()
@@ -1109,6 +1066,7 @@ async def health_check():
     else:
         ai_providers_status = {"error": "AI client not initialized"}
 
+    # Test Redis
     redis_available = False
     cache_hit_rate = 0.0
     
@@ -1117,6 +1075,7 @@ async def health_check():
             await resources.redis_client.ping()
             redis_available = True
             
+            # Get cache statistics
             info = await resources.redis_client.info()
             hits = int(info.get('keyspace_hits', 0))
             misses = int(info.get('keyspace_misses', 0))
@@ -1125,6 +1084,7 @@ async def health_check():
         except Exception as e:
             logger.warning(f"Redis health check failed: {e}")
 
+    # Calculate total requests from stats
     total_requests = sum(
         stats.get('total_requests', 0) 
         for stats in resources.request_stats.values()
@@ -1133,22 +1093,20 @@ async def health_check():
     return HealthResponse(
         status="healthy",
         version=config.version,
-        python_version=config.python_version,
         timestamp=datetime.now(),
         ai_client_ready=ai_client_ready,
         ai_providers_status=ai_providers_status,
         redis_available=redis_available,
-        database_connected=True,
+        database_connected=True,  # Simplified check
         uptime_seconds=uptime,
         cache_hit_rate=cache_hit_rate,
         total_requests=total_requests,
-        active_connections=0,
+        active_connections=0,  # Would be implemented with actual connection tracking
         features_enabled={
             "cache": config.enable_cache,
             "compression": config.enable_compression,
             "metrics": config.enable_metrics,
             "redis": redis_available,
-            "python_313_optimized": True
         }
     )
 
@@ -1162,12 +1120,13 @@ if config.enable_metrics:
 # --- Admin Endpoints ---
 
 @app.post("/admin/reload-config")
-@rate_limit(3)  # 3 per minute
+@limiter.limit("3/hour")
 async def reload_config(request: Request):
     """Hot reload AI configuration"""
     try:
         await resources.load_ai_config(force_reload=True)
         
+        # Reinitialize AI client with new config
         if resources.ai_client_instance and hasattr(resources.ai_client_instance, 'aclose'):
             await resources.ai_client_instance.aclose()
         
@@ -1175,14 +1134,14 @@ async def reload_config(request: Request):
         await resources.initialize_ai_client()
         
         logger.info("🔄 Configuration reloaded successfully")
-        return {"status": "success", "message": "Configuration reloaded", "python_version": config.python_version}
+        return {"status": "success", "message": "Configuration reloaded"}
         
     except Exception as e:
         logger.error(f"Config reload error: {e}")
         raise HTTPException(status_code=500, detail=f"Config reload failed: {str(e)}")
 
 @app.get("/admin/stats")
-@rate_limit(10)  # 10 per minute
+@limiter.limit("10/hour")
 async def get_service_stats(request: Request):
     """Get comprehensive service statistics"""
     
@@ -1190,7 +1149,6 @@ async def get_service_stats(request: Request):
         "service": {
             "name": config.app_name,
             "version": config.version,
-            "python_version": config.python_version,
             "environment": config.environment,
             "uptime_seconds": time.time() - getattr(app.state, 'start_time', time.time())
         },
@@ -1198,8 +1156,7 @@ async def get_service_stats(request: Request):
             "cache_enabled": config.enable_cache,
             "compression_enabled": config.enable_compression,
             "metrics_enabled": config.enable_metrics,
-            "redis_available": resources.redis_client is not None,
-            "python_313_optimized": True
+            "redis_available": resources.redis_client is not None
         },
         "ai_providers": {},
         "performance": {
@@ -1210,6 +1167,7 @@ async def get_service_stats(request: Request):
         }
     }
     
+    # AI provider statistics
     for provider, provider_stats in resources.request_stats.items():
         circuit_breaker = resources.circuit_breakers.get(provider)
         stats["ai_providers"][provider] = {
@@ -1218,6 +1176,7 @@ async def get_service_stats(request: Request):
             "failure_count": circuit_breaker.failure_count if circuit_breaker else 0
         }
     
+    # Performance statistics
     stats["performance"]["total_requests"] = sum(
         s.get('total_requests', 0) for s in resources.request_stats.values()
     )
@@ -1228,6 +1187,7 @@ async def get_service_stats(request: Request):
         s.get('failed_requests', 0) for s in resources.request_stats.values()
     )
     
+    # Redis statistics
     if resources.redis_client:
         try:
             info = await resources.redis_client.info()
@@ -1247,6 +1207,105 @@ async def get_service_stats(request: Request):
     
     return stats
 
+# --- Data Ingestion Endpoints ---
+
+@app.post("/ingest_data")
+@limiter.limit("15/hour")
+async def ingest_provider_data(
+    request: Request,
+    ingestion_request: IngestionRequest,
+    background_tasks: BackgroundTasks,
+    session: AsyncSession = Depends(get_session) if 'get_session' in globals() else None
+):
+    """Cost-optimized data ingestion with smart caching"""
+    
+    cache_key = None
+    if config.enable_cache and ingestion_request.use_cache:
+        cache_key = generate_cache_key(
+            "ingestion_v2",
+            ingestion_request.source_identifier,
+            ingestion_request.category,
+            ingestion_request.compression_level
+        )
+
+    # Check cache first
+    if cache_key and resources.redis_client:
+        cached_result = await AdvancedCache.get_cached(resources.redis_client, cache_key)
+        if cached_result:
+            logger.info("💾 Cache hit for data ingestion")
+            cached_result['cached'] = True
+            return cached_result
+
+    logger.info(f"🔄 Starting optimized ingestion: {ingestion_request.source_identifier}")
+
+    try:
+        # Check if business logic functions are available
+        if 'discover_and_extract_data' not in globals():
+            raise HTTPException(
+                status_code=503, 
+                detail="Data ingestion services not available"
+            )
+        
+        # AI-powered extraction with cost control
+        raw_data = discover_and_extract_data(
+            source_identifier=ingestion_request.source_identifier,
+            category=ingestion_request.category,
+            use_cache=ingestion_request.use_cache
+        )
+
+        if not raw_data:
+            result = {
+                "message": "No data extracted from source",
+                "products_stored": 0,
+                "source": ingestion_request.source_identifier,
+                "cost_optimized": True,
+                "compression_used": config.enable_compression
+            }
+        else:
+            standardized_data = parse_and_standardize(raw_data, category=ingestion_request.category)
+            
+            if not standardized_data:
+                result = {
+                    "message": "No standardized data generated",
+                    "products_stored": 0,
+                    "source": ingestion_request.source_identifier,
+                    "cost_optimized": True
+                }
+            else:
+                if session:
+                    await store_standardized_data(session=session, data=standardized_data)
+                
+                result = {
+                    "message": f"Successfully ingested {len(standardized_data)} products",
+                    "products_stored": len(standardized_data),
+                    "source": ingestion_request.source_identifier,
+                    "cost_optimized": True,
+                    "cached": False,
+                    "compression_level": ingestion_request.compression_level
+                }
+
+        # Cache with smart TTL
+        if cache_key and resources.redis_client:
+            cache_ttl = (config.cache_ttl_long if result["products_stored"] > 0 
+                        else config.cache_ttl_short)
+            background_tasks.add_task(
+                _cache_ingestion_result, cache_key, result, cache_ttl
+            )
+
+        return result
+
+    except Exception as e:
+        logger.error(f"Ingestion error: {e}")
+        raise HTTPException(status_code=500, detail=f"Ingestion failed: {str(e)}")
+
+async def _cache_ingestion_result(cache_key: str, result: Dict[str, Any], ttl: int):
+    """Cache ingestion results with compression"""
+    if resources.redis_client:
+        try:
+            await AdvancedCache.set_cached(resources.redis_client, cache_key, result, ttl)
+        except Exception as e:
+            logger.warning(f"Cache write error: {e}")
+
 # --- Root Endpoint ---
 
 @app.get("/")
@@ -1255,7 +1314,6 @@ async def root():
     return {
         "service": config.app_name,
         "version": config.version,
-        "python_version": config.python_version,
         "status": "🚀 Ready",
         "environment": config.environment,
         "features": [
@@ -1265,8 +1323,7 @@ async def root():
             "🔄 Circuit breaker protection",
             "📊 Performance monitoring",
             "🗜️ Response compression",
-            "🔧 Hot configuration reload",
-            "🐍 Python 3.13 optimized"
+            "🔧 Hot configuration reload"
         ],
         "ai_providers": {
             "free_tier": [provider for provider, limit in config.ai.free_tier_limits.items() 
@@ -1278,9 +1335,7 @@ async def root():
             "request_timeout": config.ai.request_timeout,
             "cache_enabled": config.enable_cache,
             "compression_enabled": config.enable_compression,
-            "metrics_enabled": config.enable_metrics,
-            "modern_rate_limiting": True,
-            "exception_groups_support": True
+            "metrics_enabled": config.enable_metrics
         },
         "endpoints": {
             "docs": "/docs" if config.environment != 'production' else "disabled",
@@ -1295,27 +1350,28 @@ async def root():
 if __name__ == "__main__":
     import uvicorn
     
+    # Production-optimized server configuration
     uvicorn_config = {
         "app": app,
         "host": "0.0.0.0",
         "port": int(os.getenv('PORT', '8000')),
-        "workers": 1,
+        "workers": 1,  # Single worker for async app with shared state
         "access_log": config.environment != 'production',
         "reload": config.environment == 'development'
     }
     
+    # Add performance optimizations for production
     if config.environment == 'production':
         try:
             uvicorn_config.update({
-                "loop": "uvloop",
-                "http": "httptools",
+                "loop": "uvloop",     # High-performance event loop
+                "http": "httptools",  # Faster HTTP parser
             })
         except ImportError:
             logger.warning("uvloop/httptools not available, using default implementations")
     
     logger.info(f"🚀 Starting {config.app_name} v{config.version}")
     logger.info(f"Environment: {config.environment}")
-    logger.info(f"Python version: {config.python_version}")
     logger.info(f"Configuration: {uvicorn_config}")
     
     uvicorn.run(**uvicorn_config)
