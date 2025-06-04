@@ -1,0 +1,9 @@
+# /config/ai_providers.yaml
+openai:
+  api_key: ${OPENAI_API_KEY}
+  endpoint: https://api.openai.com/v1
+  model: gpt-3.5-turbo
+moonshot:
+  api_key: ${MOONSHOT_API_KEY}
+  endpoint: https://api.moonshot.com/v1
+  model: moonshot-v1
