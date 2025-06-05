@@ -38,6 +38,7 @@ class MetricsCollector:
         self.registry = registry or CollectorRegistry()
         self.custom_metrics: Dict[str, List[MetricValue]] = {}
         self._setup_prometheus_metrics()
+        self.python_version = platform.python_version()  # Get current Python version dynamically
         
     def _setup_prometheus_metrics(self):
         """Setup Prometheus metrics if available"""

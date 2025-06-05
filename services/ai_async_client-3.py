@@ -1,4 +1,4 @@
-# services/ai_async_client.py - Enhanced AI client optimized for cost-effectiveness and performance
+# services/ai_async_client-3.py - Enhanced AI client optimized for cost-effectiveness and performance
 # https://claude.ai/chat/25cec1e7-314e-435b-9a20-8213b49cc952
 from __future__ import annotations
 import asyncio

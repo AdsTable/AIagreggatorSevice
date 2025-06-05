@@ -99,7 +99,7 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(funcName)s:%(lineno)d - %(message)s',
     handlers=[
-        logging.FileHandler('app.log', mode='a'),
+        logging.FileHandler('app.log', mode='a', encoding='utf-8'),  # Use utf-8 for emoji support
         logging.StreamHandler()
     ]
 )
@@ -693,8 +693,6 @@ def generate_cache_key(prefix: str, *args, **kwargs) -> str:
     key_data = f"{prefix}:{args_str}:{kwargs_str}"
     return hashlib.sha256(key_data.encode()).hexdigest()[:32]
 
-config = Metrics(app_name="AI Aggregator Pro")
-
 def monitor_performance(operation_name: str):
     """Decorator for performance monitoring"""
     def decorator(func: Callable) -> Callable:
@@ -915,6 +913,9 @@ async def lifespan(app: FastAPI):
         logger.info("✅ Shutdown completed")
 
 # --- FastAPI Application ---
+
+print(vars(metrics_collector))
+
 app = FastAPI(
     title=config.app_name,
     description=f"Next-generation AI service optimized for Python {config.python_version}",
