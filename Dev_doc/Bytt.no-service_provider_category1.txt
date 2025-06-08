@@ -1,0 +1,109 @@
+"website_url":"https://www.bytt.no"
+"user_prompt":"Create a summary of the webpage with the names of all service providers for all service categories divided by category"
+"result":{
+"serviceCategories":{
+"Forsikring":[
+0:"Gjensidige"
+1:"Sbanken"
+2:"Talkmore"
+3:"Canal Digital"
+4:"Dagligbank Oslo Pensjonsforsikring AS"
+5:"Bank Nordirekte"
+6:"Bank Penni"
+7:"Borettslag & sameie"
+8:"Bilforsikring bedrift"
+9:"Personforsikring bedrift"
+10:"Helseforsikring bedrift"
+11:"Transportforsikring bedrift"
+12:"Eiendomsforsikring bedrift"
+13:"Landbruksforsikring bedrift"
+14:"Ly Forsikring"
+15:"Fremtind Forsikring"
+]
+"Lån & kreditt":[
+0:"Sbanken"
+1:"Gjensidige"
+2:"Dagligbank Oslo Pensjonsforsikring AS"
+3:"Bank Nordirekte"
+4:"Bank Penni"
+]
+"Refinansiering":[
+0:"Sbanken"
+1:"Gjensidige"
+2:"Dagligbank Oslo Pensjonsforsikring AS"
+3:"Bank Nordirekte"
+4:"Bank Penni"
+]
+"Sparekonto":[
+0:"Sbanken"
+1:"Dagligbank Oslo Pensjonsforsikring AS"
+2:"Bank Nordirekte"
+3:"Bank Penni"
+]
+"Mobilabonnement":[
+0:"Talkmore"
+1:"Telenor"
+2:"Netcom"
+3:"Tele2"
+4:"Talkmore"
+5:"Unifon"
+6:"Phonero"
+7:"Happybytes"
+8:"Fjordkraft Mobil"
+9:"Pingaway"
+]
+"Strøm":[
+0:"Kilden Kraft"
+1:"Cheap Energy"
+2:"Akershus Energi"
+3:"Bergen Energi"
+4:"Trondheim Energi"
+5:"Agva Kraft"
+6:"Fortum"
+]
+"Bredbånd":[
+0:"Telenor"
+1:"Netcom"
+2:"Altibox"
+3:"Get"
+4:"NextgenTel"
+5:"NextGenTel"
+6:"Telenor Bredbånd"
+]
+"TV-pakker":[
+0:"Canal Digital"
+1:"RiksTV"
+2:"Altibox"
+3:"Get"
+4:"NextgenTel"
+]
+"Varmepumpe":[
+0:"Toshiba"
+1:"Panasonic"
+2:"Fujitsu"
+]
+"Eiendomsmegler":[
+0:"Eiendomsmegler1"
+1:"Eiendomsmegler2"
+2:"Eiendomsmegler3"
+3:"Propr"
+]
+"Boligalarm":[
+0:"Boligalarm1"
+1:"Boligalarm2"
+2:"Verisure"
+3:"Sector Alarm"
+4:"Nokas"
+5:"Novus Systems"
+]
+"Solcelle":[
+0:"Solcelle1"
+1:"Solcelle2"
+2:"Solcelleleverandør1"
+3:"Solcelleleverandør2"
+4:"Solcelleleverandør3"
+]
+}
+}
+"error":""
+}

@@ -1,0 +1,49 @@
+{
+  "request_id": "0a0407bd-ec99-4450-bb62-6e9426ba56f9",
+  "status": "completed",
+  "website_url": "https://www.adstable.com/",
+  "user_prompt": "Analyze the structure of the site and create your own structural layout of the site, as well as make a brief description of what each section of the service does.",
+  "result": {
+    "structure": {
+      "header": {
+        "navigation": "primary menu",
+        "logo": "site logo"
+      },
+      "main": {
+        "sections": [
+          "hero",
+          "features",
+          "about",
+          "contact"
+        ]
+      },
+      "footer": {
+        "sections": [
+          "copyright",
+          "social media",
+          "terms"
+        ]
+      }
+    },
+    "description": {
+      "header": "site introduction and navigation",
+      "main": {
+        "hero": "introduction to the site",
+        "features": "site features and benefits",
+        "about": "information about the site and its purpose",
+        "contact": "contact information and form"
+      },
+      "footer": "site footer with copyright and terms information"
+    },
+    "sections": {
+      "hero": "brief introduction to the site",
+      "features": "list of site features and benefits",
+      "about": "detailed information about the site",
+      "contact": "contact form and information",
+      "copyright": "site copyright information",
+      "social media": "links to site social media",
+      "terms": "site terms and conditions"
+    }
+  },
+  "error": ""
+}

@@ -1,0 +1,145 @@
+{
+  "request_id": "d96aac47-77fa-4960-8aca-cbb5a3d945fa",
+  "status": "completed",
+  "website_url": "https://www.bytt.no/",
+  "user_prompt": "Analyze the structure of the site and create your own structural layout of the site, as well as make a brief description of what each section of the service does.",
+  "result": {
+    "structure": {
+      "header": {
+        "logo": "Bytt.no",
+        "navigation": [
+          "Forsikring",
+          "Lån & kreditt",
+          "Refinansiering",
+          "Sparekonto",
+          "Mobilabonnement",
+          "Strøm",
+          "Bredbånd",
+          "TV-pakker"
+        ]
+      },
+      "sections": {
+        "Hus & hjem": {
+          "Varmepumpe": "Få tilbud på varmepumpe",
+          "Eiendomsmegler": "Finn lokale meglere",
+          "Boligalarm": "Få tilbud på boligalarm",
+          "Solcelle": "Få tilbud fra solcelletilbydere"
+        },
+        "Bedrift & borettslag": {
+          "For bedrifter": [
+            "Forsikring til bedrift",
+            "Bredbånd til bedrift",
+            "Strøm til bedrift",
+            "Mobilabonnement til bedrift",
+            "Alarm til bedrift"
+          ],
+          "For borettslag": [
+            "Forsikring til borettslag",
+            "Bredbånd til borettslag",
+            "Strøm til borettslag",
+            "Alarm til borettslag"
+          ]
+        },
+        "Min Bytt": {
+          "Min Side": [
+            "Logg inn",
+            "Mine meldinger",
+            "Mine omtaler",
+            "Mine tilbud",
+            "Registrer ny bruker"
+          ]
+        },
+        "forsikring": {
+          "subsections": [
+            "Personforsikringer",
+            "Skadeforsikringer",
+            "Bedrift & borettslag"
+          ]
+        },
+        "lån & kreditt": {
+          "subsections": [
+            "Boliglån",
+            "Billån",
+            "Båtlån",
+            "Forbrukslån",
+            "Kredittkort"
+          ]
+        },
+        "refinansiering": {
+          "subsections": [
+            "Refinansier boliglån",
+            "Refinansier billån",
+            "Refinansier forbrukslån",
+            "Refinansier kredittkort"
+          ]
+        },
+        "sparekonto": {
+          "subsections": [
+            "Høyrentekonto",
+            "Fastrentekonto",
+            "BSU"
+          ]
+        },
+        "mobilabonnement": {
+          "subsections": [
+            "Få 3 tilbud",
+            "Test ditt abonnement"
+          ]
+        },
+        "strøm": {
+          "subsections": [
+            "Få 3 tilbud på strøm",
+            "Test din strømavtale"
+          ]
+        },
+        "bredbånd": {
+          "subsections": [
+            "Få 3 tilbud på bredbånd",
+            "Test din hastighet"
+          ]
+        },
+        "tv-pakker": {
+          "subsections": [
+            "Få tilbud på TV-pakker",
+            "TV + bredbånd"
+          ]
+        }
+      },
+      "footer": {
+        "links": [
+          "Ledige stillinger",
+          "Infosenter",
+          "Kontakt",
+          "Omtaler",
+          "Personvern"
+        ],
+        "social media": [
+          "Facebook",
+          "Twitter",
+          "Instagram",
+          "LinkedIn"
+        ]
+      }
+    },
+    "description": "Bytt.no er Norges største sammenligningstjeneste for tjenester og produkter innen personlig økonomi. Vi hjelper deg med å finne de beste tilbudene og tjenestene. Bytt.no er en nettside som tilbyr sammenligning av priser og tjenester for forskjellige produkter og tjenester, inkludert forsikring, lån, kreditt, strøm, bredbånd, TV-pakker og mer. Nettsiden har en enkel og brukervennlig design, og tilbyr en rekke verktøy og ressurser for å hjelpe brukerne med å finne de beste tilbudene og spare penger.",
+    "services": {
+      "forsikring": "Forsikringssammenligning",
+      "lån & kreditt": "Lånsammenligning",
+      "refinansiering": "Refinansieringssammenligning",
+      "sparekonto": "Sparekontosammenligning",
+      "mobilabonnement": "Mobilabonnementsammenligning",
+      "strøm": "Strømsammenligning",
+      "bredbånd": "Bredbåndssammenligning",
+      "tv-pakker": "TV-pakkesammenligning"
+    },
+    "section_descriptions": {
+      "Stol på priser og vilkår": "Bytt.no jobber for et åpent og transparent marked for sammenligning av tjenester innen personlig økonomi.",
+      "Stol på andre kunder": "Les omtaler fra andre kunder før du velger ny bank, bytte strømleverandør eller sjekke pris på forsikring.",
+      "TEST FORSIKRINGEN DIN": "Sjekk hvor mye du kan spare på å bytte forsikringene dine til et bedre og billigere forsikringsselskap.",
+      "TEST KREDITTGJELDEN DIN": "Sjekk hvor mye du kan spare på å samle kredittgjelden din til et billigere lån.",
+      "TEST STRØMAVTALEN DIN": "Vår robot analyserer og tester strømavtalen din mot alle andre på markedet - sjekk om du betaler for mye!",
+      "NYLIG OMTALTE SELSKAPER": "Les omtaler fra andre kunder om ulike selskaper og tjenester."
+    }
+  },
+  "error": ""
+}

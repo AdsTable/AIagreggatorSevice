@@ -1,0 +1,126 @@
+{
+  "request_id": "12d442dd-d06e-4f33-835d-66b25bff9bc5",
+  "status": "completed",
+  "website_url": "https://www.bytt.no/mobilabonnement",
+  "user_prompt": "Extract links to providers from the web page of the service aggregator site comparing prices for services and make a brief description of what the service does.",
+  "result": {
+    "providers": [
+      {
+        "name": "PlussMobil",
+        "url": "https://www.bytt.no/mobilabonnement/tilbud/privat",
+        "link": "https://www.bytt.no/mobilabonnement/privat/plussmobil",
+        "description": "Billigste mobilabonnement. Plussmobil provides mobile subscriptions with Telenor coverage, data rollover, and trial purchase without obligation. Rimelig og bra abonnement med god dekning"
+      },
+      {
+        "name": "Ice",
+        "url": "https://www.bytt.no/mobilabonnement/tilbud/privat",
+        "link": "https://www.bytt.no/mobilabonnement/privat/ice-net",
+        "description": "Billigste mobilabonnement. Ice offers mobile subscriptions with Ice coverage, competitive prices, and trial purchase without obligation. Billig, men hadde problemer med kundeservice og faktura"
+      },
+      {
+        "name": "Talkmore",
+        "url": "https://www.bytt.no/mobilabonnement/tilbud/privat",
+        "link": "https://www.bytt.no/mobilabonnement/privat/talkmore",
+        "description": "Billigste mobilabonnement. Talkmore provides mobile subscriptions with 5G Telenor coverage, security included, and the most satisfied customers on Bytt.no. Billig og bra mobilabonnement med raskt svar på henvendelser"
+      },
+      {
+        "name": "Chilimobil",
+        "url": "https://www.bytt.no/mobilabonnement/tilbud/privat",
+        "link": "https://www.bytt.no/mobilabonnement/privat/chilimobil",
+        "description": "Billigste mobilabonnement. Chilimobil offers mobile subscriptions with data rollover, Telia coverage, and free data basis. Billig mobilabonnement med god dekning"
+      },
+      {
+        "name": "Telia Mobil",
+        "url": "https://www.bytt.no/mobilabonnement/tilbud/privat",
+        "description": "Mobilabonnement"
+      },
+      {
+        "name": "Fjordkraft Mobil",
+        "url": "https://www.bytt.no/mobilabonnement/tilbud/privat",
+        "link": "https://www.bytt.no/mobilabonnement/privat/fjordkraft-mobil",
+        "description": "Mobilabonnement. Fjordkraft Mobil offers mobile subscriptions with data rollover, Telia coverage, and competitive prices. Billig abonnement med god service og dekning"
+      },
+      {
+        "name": "Telenor Mobil",
+        "url": "https://www.bytt.no/mobilabonnement/tilbud/privat",
+        "link": "https://www.bytt.no/erfaringer/mobilabonnement/telenor-mobil",
+        "description": "Mobilabonnement. Fornøyd med Telenor, men kunne vårt billigere"
+      },
+      {
+        "name": "OneCall",
+        "url": "https://www.bytt.no/mobilabonnement/tilbud/privat",
+        "link": "https://www.bytt.no/mobilabonnement/privat/onecall",
+        "description": "Mobilabonnement. OneCall offers mobile subscriptions with data rollover, 5G from Telia, and trial purchase without obligation. Billig og bra mobilabonnement med enkelt nettsted og gode kundeveiledere"
+      },
+      {
+        "name": "Xplora Mobile",
+        "url": "https://www.bytt.no/mobilabonnement/tilbud/privat",
+        "description": "Mobilabonnement"
+      },
+      {
+        "name": "Happybytes",
+        "url": "https://www.bytt.no/mobilabonnement/tilbud/privat",
+        "link": "https://www.bytt.no/mobilabonnement/privat/happybytes",
+        "description": "Mobilabonnement. Happybytes provides mobile subscriptions with Telenor coverage, data rollover, and trial purchase without obligation"
+      },
+      {
+        "name": "Bytt.no",
+        "url": "https://www.bytt.no",
+        "description": "Norges største forbrukerportal for personlig økonomi"
+      },
+      {
+        "name": "Forsikringsselskaper",
+        "url": "https://www.bytt.no/erfaringer/forsikring",
+        "description": "Sammenlign pris på forsikring og finn de beste og billigste forsikringene"
+      },
+      {
+        "name": "Banker",
+        "url": "https://www.bytt.no/erfaringer/bank",
+        "description": "Sammenlign renter på lån og finn det beste og billigste lånet"
+      },
+      {
+        "name": "Mobiloperatører",
+        "url": "https://www.bytt.no/erfaringer/mobilabonnement",
+        "description": "Sammenlign pris på mobilabonnementer og finn det billigste abonnementet"
+      },
+      {
+        "name": "Strømleverandører",
+        "url": "https://www.bytt.no/erfaringer/strom",
+        "description": "Sammenlign alle strømavtaler og finn de beste og billigste strømavtalene"
+      },
+      {
+        "name": "Bredbåndsleverandører",
+        "url": "https://www.bytt.no/erfaringer/bredband",
+        "description": "Sammenlign pris og hastighet på bredbånd og finn det beste og billigste bredbåndet"
+      },
+      {
+        "name": "TV-leverandører",
+        "url": "https://www.bytt.no/erfaringer/parabol-og-kabel-tv",
+        "description": "Sammenlign pris og utvalg på TV-pakker og finn de beste og billigste TV-pakkene"
+      },
+      {
+        "name": "Varmepumpetilbydere",
+        "url": "https://www.bytt.no/erfaringer/varmepumpe",
+        "description": "Sammenlign pris og kvalitet på varmepumper og finn den beste og billigste varmepumpen"
+      },
+      {
+        "name": "Eiendomsmeglere",
+        "url": "https://www.bytt.no/erfaringer/eiendomsmegler",
+        "description": "Sammenlign pris og kvalitet på eiendomsmeglere og finn den beste eiendomsmegleren"
+      },
+      {
+        "name": "Alarmselskaper",
+        "url": "https://www.bytt.no/erfaringer/boligalarm",
+        "description": "Sammenlign pris og kvalitet på alarmselskaper og finn den beste alarmselskapet"
+      },
+      {
+        "name": "Solcelleleverandører",
+        "url": "https://www.bytt.no/erfaringer/solcelle",
+        "description": "Sammenlign pris og kvalitet på solcelleleverandører og finn den beste solcelleleverandøren"
+      }
+    ],
+    "service": "Mobilabonnement",
+    "brief_description": "Bytt.no er en nettsted som sammenligner priser på mobilabonnementer fra ulike leverandører."
+  },
+  "error": ""
+}

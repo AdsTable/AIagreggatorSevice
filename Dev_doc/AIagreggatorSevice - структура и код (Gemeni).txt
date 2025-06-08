@@ -1,0 +1,391 @@
+AIagreggatorSevice - структура и код (Gemeni)
+//https://studio.firebase.google.com/studio-25041020 
+
+.
+├── data_fetcher.py
+├── data_parser.py
+├── data_storage.py
+├── data_search.py
+├── models.py
+└── main.py
+└── database.py 
+
+
+**********
+# models.py
+from pydantic import BaseModel
+from typing import Dict, Any, Optional, List
+
+class StandardizedProduct(BaseModel):
+    """
+    Pydantic model for standardized product data.
+    """
+    type: str # e.g., "electricity_plan", "mobile_plan"
+    provider_name: Optional[str] = None
+    product_id: Optional[str] = None
+    name: Optional[str] = None
+    # Include fields common to different product types, and make optional if not always present
+    price_kwh: Optional[float] = None
+    monthly_cost: Optional[float] = None
+    data_gb: Optional[float] = None
+    contract_duration_months: Optional[int] = None
+    # Add other relevant fields
+
+    raw_data: Dict[str, Any] # To store the original data for reference
+
+    # Allow extra fields to handle variations if needed, or be strict by default
+    # model_config = ConfigDict(extra='ignore')
+
+class SearchQuery(BaseModel):
+    """
+    Pydantic model for search request body (if using POST for search).
+    Using GET with query parameters in main.py for this example, but this is an alternative.
+    """
+    product_type: Optional[str] = None
+    min_price: Optional[float] = None
+    provider: Optional[str] = None
+    # Add other filtering parameters
+*****
+# data_fetcher.py
+import requests
+import json
+from typing import Dict, Any, Optional
+
+def fetch_product_data(provider_url: str) -> Dict[str, Any] | None:
+    """
+    Simulates fetching data from a provider's API.
+    In a real scenario, this would handle errors, authentication, etc.
+    """
+    try:
+        print(f"Attempting to fetch data from: {provider_url}")
+        # Simulate an API call
+        response = requests.get(provider_url, timeout=10) # Add a timeout
+
+        # Raise an HTTPError for bad responses (4xx or 5xx)
+        response.raise_for_status()
+
+        print("Data fetched successfully.")
+        return response.json() # Assume the API returns JSON data
+
+    except requests.exceptions.RequestException as e:
+        print(f"Error fetching data from {provider_url}: {e}")
+        return None
+    except json.JSONDecodeError:
+        print(f"Error decoding JSON from {provider_url}. Response content: {response.text}")
+        return None
+
+# For demonstration purposes, a simulated data source
+def get_simulated_raw_data() -> Dict[str, Any]:
+    return {
+        "products": [
+            {"id": "p1", "name": "Basic Electricity Plan", "price_kwh": 0.15, "provider": "ElecCorp", "details": {"contract_months": 12}},
+            {"id": "p2", "name": "Green Energy Option", "price_kwh": 0.18, "provider": "EcoPower", "details": {"renewable_percentage": 100, "contract_months": 24}},
+            {"id": "p3", "name": "Mobile Plan 10GB", "monthly_cost": 200, "data_gb": 10, "provider": "MobileNet", "details": {"calls": "unlimited", "sms": "unlimited"}},
+            {"id": "p4", "name": "Unknown Product", "category": "gadget"} # Example of an unknown product
+        ]
+    }
+*****
+# data_parser.py
+from typing import List, Dict, Any, Optional
+from models import StandardizedProduct # Import the model
+
+def standardize_electricity_plan(product_data: Dict[str, Any]) -> Optional[StandardizedProduct]:
+    """
+    Standardizes data for an electricity plan.
+    Handles potential missing fields and converts units if necessary.
+    """
+    try:
+        # Use the Pydantic model for standardization and validation
+        # Using model_validate for dictionary input
+        return StandardizedProduct.model_validate({
+            "type": "electricity_plan",
+            "provider_name": product_data.get("provider"),
+            "product_id": product_data.get("id"),
+            "name": product_data.get("name"),
+            "price_kwh": float(product_data.get("price_kwh")) if product_data.get("price_kwh") is not None else None, # Ensure price is a float
+            "contract_duration_months": product_data.get("details", {}).get("contract_months"),
+            "raw_data": product_data # Keep raw data for debugging if needed
+        })
+    except (TypeError, ValueError, KeyError) as e:
+        print(f"Error standardizing electricity plan data: {e} - Data: {product_data}")
+        return None
+
+def standardize_mobile_plan(product_data: Dict[str, Any]) -> Optional[StandardizedProduct]:
+    """
+    Standardizes data for a mobile plan.
+    """
+    try:
+        # Using model_validate for dictionary input
+        return StandardizedProduct.model_validate({
+            "type": "mobile_plan",
+            "provider_name": product_data.get("provider"),
+            "product_id": product_data.get("id"),
+            "name": product_data.get("name"),
+            "monthly_cost": float(product_data.get("monthly_cost")) if product_data.get("monthly_cost") is not None else None,
+            "data_gb": float(product_data.get("data_gb")) if product_data.get("data_gb") is not None else None,
+            "raw_data": product_data
+        })
+    except (TypeError, ValueError, KeyError) as e:
+        print(f"Error standardizing mobile plan data: {e} - Data: {product_data}")
+        return None
+
+
+def parse_and_standardize(raw_data: Dict[str, Any]) -> List[StandardizedProduct]:
+    """
+    Parses raw data from a provider and standardizes it.
+    Assumes raw_data contains a list of products under the key 'products'.
+    """
+    standardized_products: List[StandardizedProduct] = []
+    if not raw_data or "products" not in raw_data or not isinstance(raw_data["products"], list):
+        print("Invalid raw data format: No 'products' list found.")
+        return standardized_products
+
+    for product in raw_data.get("products", []):
+        if not isinstance(product, dict):
+            print(f"Skipping invalid product data format: {product}")
+            continue
+
+        # Determine product type based on expected keys
+        if "price_kwh" in product:
+            standardized_product = standardize_electricity_plan(product)
+        elif "monthly_cost" in product and "data_gb" in product:
+            standardized_product = standardize_mobile_plan(product)
+        else:
+            print(f"Unknown product type, skipping: {product}")
+            standardized_product = None
+
+        if standardized_product:
+            standardized_products.append(standardized_product)
+
+    return standardized_products
+******
+# data_storage.py
+from typing import List
+from models import StandardizedProduct # Import the model
+import time
+import asyncio # Use asyncio.sleep for async functions
+
+# In a real application, you would initialize your database connection here
+# For example, if using SQLAlchemy:
+# from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+# DATABASE_URL = "postgresql+asyncpg://user:password@host/dbname"
+# engine = create_async_engine(DATABASE_URL)
+
+async def store_standardized_data(data: List[StandardizedProduct]):
+    """
+    Placeholder function to simulate storing standardized data in a database.
+    Replace this with actual database insertion logic.
+    Uses async to simulate real DB calls.
+    """
+    if not data:
+        print("No data to store.")
+        return
+
+    print(f"Attempting to store {len(data)} standardized products...")
+
+    # --- Replace this section with your actual database interaction code ---
+    # Example using a print statement and async sleep to simulate storage:
+    for item in data:
+        print(f"  Simulating storing item: {item.name} (Type: {item.type})")
+        # Example DB interaction would go here (e.g., INSERT statements)
+        # async with AsyncSession(engine) as session:
+        #     db_item = YourDatabaseModel(**item.model_dump()) # Convert Pydantic to DB model
+        #     session.add(db_item)
+        #     await session.commit()
+
+    # Simulate asynchronous database write time
+    await asyncio.sleep(1.0)
+    # ---------------------------------------------------------------------
+
+    print("Data storage simulation complete.")
+********
+# data_search.py
+from typing import List, Optional
+from models import StandardizedProduct # Import the model
+import asyncio # Use asyncio.sleep for async functions
+
+# In a real application, this data would be fetched from your database
+# For this example, we'll use simulated data (matching the StandardizedProduct model)
+simulated_database_data: List[StandardizedProduct] = [
+    StandardizedProduct(
+        type="electricity_plan",
+        provider_name="ElecCorp",
+        product_id="p1",
+        name="Basic Electricity Plan",
+        price_kwh=0.15,
+        contract_duration_months=12,
+        raw_data={"id": "p1", "name": "Basic Electricity Plan", "price_kwh": 0.15, "provider": "ElecCorp", "details": {"contract_months": 12}}
+    ),
+    StandardizedProduct(
+        type="electricity_plan",
+        provider_name="EcoPower",
+        product_id="p2",
+        name="Green Energy Option",
+        price_kwh=0.18,
+        contract_duration_months=24,
+        raw_data={"id": "p2", "name": "Green Energy Option", "price_kwh": 0.18, "provider": "EcoPower", "details": {"renewable_percentage": 100, "contract_months": 24}}
+    ),
+    StandardizedProduct(
+        type="mobile_plan",
+        provider_name="MobileNet",
+        product_id="p3",
+        name="Mobile Plan 10GB",
+        monthly_cost=200.0,
+        data_gb=10.0,
+        raw_data={"id": "p3", "name": "Mobile Plan 10GB", "monthly_cost": 200, "data_gb": 10, "provider": "MobileNet", "details": {"calls": "unlimited", "sms": "unlimited"}}
+    ),
+    StandardizedProduct(
+        type="mobile_plan",
+        provider_name="GlobalNet",
+        product_id="p4",
+        name="Mobile Plan 20GB",
+        monthly_cost=250.0,
+        data_gb=20.0,
+        raw_data={}
+    )
+]
+
+async def search_and_filter_products(
+    product_type: Optional[str] = None,
+    min_price: Optional[float] = None,
+    provider: Optional[str] = None,
+    # Add other filtering parameters as needed
+) -> List[StandardizedProduct]:
+    """
+    Simulates searching and filtering products from the stored data.
+    Replace this with actual database query logic (SQL or vector search).
+    Uses async to simulate real DB calls.
+    """
+    print(f"Searching with filters: type={product_type}, min_price={min_price}, provider={provider}")
+
+    # In a real application, you would query your database here
+    # Example SQLAlchemy query:
+    # async with AsyncSession(engine) as session:
+    #     query = select(YourDatabaseModel)
+    #     if product_type:
+    #         query = query.where(YourDatabaseModel.type == product_type)
+    #     if min_price is not None:
+    #         # Need to handle different price fields based on product type in a real query
+    #         query = query.where(YourDatabaseModel.price_kwh >= min_price) # Example for electricity
+    #     if provider:
+    #         query = query.where(YourDatabaseModel.provider_name == provider)
+    #     results = await session.execute(query)
+    #     filtered_results = [StandardizedProduct.model_validate(row[0]) for row in results]
+
+
+    # Using the simulated in-memory data for this example
+    filtered_results: List[StandardizedProduct] = []
+    for product in simulated_database_data:
+        match = True
+
+        # Filter by product type
+        if product_type and product.type != product_type:
+            match = False
+
+        # Filter by minimum price (applies to electricity and mobile plans)
+        if min_price is not None:
+            if product.type == "electricity_plan" and product.price_kwh is not None and product.price_kwh < min_price:
+                match = False
+            elif product.type == "mobile_plan" and product.monthly_cost is not None and product.monthly_cost < min_price:
+                 match = False
+
+        # Filter by provider
+        if provider and product.provider_name != provider:
+            match = False
+
+        if match:
+            filtered_results.append(product)
+
+    print(f"Found {len(filtered_results)} matching results.")
+    # Simulate async delay for search
+    await asyncio.sleep(0.5)
+    return filtered_results
+******
+# main.py
+from fastapi import FastAPI, HTTPException, Query
+from typing import List, Dict, Any, Optional
+
+# Import functions and models from your modules
+from data_fetcher import get_simulated_raw_data # Or use fetch_product_data for real fetching
+from data_parser import parse_and_standardize
+from data_storage import store_standardized_data
+from data_search import search_and_filter_products # Or your actual DB search function
+from models import StandardizedProduct # Import the model
+
+app = FastAPI()
+
+@app.post("/ingest_data")
+async def ingest_provider_data():
+    """
+    Fetches, parses, and stores data from a simulated provider.
+    In a real application, this endpoint might be triggered by a webhook
+    or a scheduled job for each provider.
+    """
+    print("\n--- Starting Data Ingestion Process ---")
+
+    # --- Step 1: Fetch Data (Simulated) ---
+    # In a real scenario, you would iterate through a list of provider URLs
+    # and call fetch_product_data(provider_url) for each.
+    raw_data = get_simulated_raw_data()
+    if not raw_data:
+        raise HTTPException(status_code=500, detail="Failed to fetch raw data.")
+    print("Raw data fetched.")
+
+    # --- Step 2: Parse and Standardize ---
+    standardized_data = parse_and_standardize(raw_data)
+    if not standardized_data:
+        print("No standardized data generated.")
+        # Depending on requirements, you might return an error or a success with no data
+        return {"message": "Data ingestion completed, but no standardized data was generated."}
+
+    print(f"{len(standardized_data)} products standardized.")
+
+    # --- Step 3: Store Data ---
+    # In a real application, handle potential errors during storage
+    await store_standardized_data(standardized_data)
+    print("Standardized data storage initiated (simulated).")
+
+    print("--- Data Ingestion Process Completed ---")
+    return {"message": "Data ingestion process initiated successfully."}
+
+@app.get("/search", response_model=List[StandardizedProduct])
+async def search_products_endpoint(
+    product_type: Optional[str] = Query(None, description="Filter by product type (e.g., electricity_plan, mobile_plan)"),
+    min_price: Optional[float] = Query(None, description="Filter by minimum price"),
+    provider: Optional[str] = Query(None, description="Filter by provider name"),
+    # Add query parameters for other filter criteria
+):
+    """
+    Searches and filters aggregated product data.
+    """
+    print("\n--- Received Search Request ---")
+    print(f"Parameters: product_type={product_type}, min_price={min_price}, provider={provider}")
+
+    try:
+        # --- Step 4: Search and Filter ---
+        # In a real application, pass database session/connection here
+        search_results = await search_and_filter_products(
+            product_type=product_type,
+            min_price=min_price,
+            provider=provider,
+            # Pass other filter parameters
+        )
+
+        print("--- Search Request Processed ---")
+        return search_results
+
+    except Exception as e:
+        print(f"An error occurred during search: {e}")
+        raise HTTPException(status_code=500, detail=f"An error occurred: {e}")
+
+# To run this FastAPI application:
+# 1. Save the files as specified in the file structure.
+# 2. Install necessary libraries: pip install fastapi uvicorn pydantic requests
+  2.1 pip install fastapi uvicorn pydantic requests sqlmodel aiosqlite
+
+# 3. Run from your terminal: uvicorn main:app --reload
+# 4. Access the interactive documentation at http://127.0.0.1:8000/docs to test the endpoints.
+#    - Use the /ingest_data POST endpoint to simulate data ingestion.
+#    - Use the /search GET endpoint with query parameters to search for data.
+
+**********
