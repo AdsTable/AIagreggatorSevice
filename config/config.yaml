@@ -1,0 +1,18 @@
+# config/config.yaml
+app_name: AI Aggregator Pro
+version: 3.1.0
+environment: development
+debug: true
+
+security:
+  secret_key: "super-secret"
+  allowed_origins:
+    - "http://localhost:3000"
+  trusted_hosts:
+    - "localhost"
+
+monitoring:
+  enable_metrics: true
+  threshold_high_latency: 5.0
+  threshold_high_error_rate: 0.1
+  threshold_low_cache_hit_ratio: 0.7

@@ -1,4 +1,4 @@
-# /config/__init__.py
+# config/__init__.py
 """
 Centralized config import module.
 Use this to load both typed settings (settings.py) and AI provider configs (ai_providers.yaml).

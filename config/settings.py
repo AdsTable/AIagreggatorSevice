@@ -1,17 +1,68 @@
 # config/settings.py - Advanced configuration management with environment-specific settings
 from __future__ import annotations
-
 import os
+import sys
+import json
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
-from pydantic import BaseSettings, Field, validator
-from pydantic_settings import BaseSettings
+#from pydantic import BaseSettings, Field, validator, ValidationError, BaseModel, ConfigDict, field_validator, computed_field
+from pydantic_settings import  BaseSettings
 import yaml
 from functools import lru_cache
+from dotenv import load_dotenv
 
+CONFIG_PATHS = [
+    Path("config.yaml"),
+    Path("config.json"),
+    Path(".env")
+]
+load_dotenv()
+try:
+    import prometheus_client
+    METRICS_AVAILABLE = True
+except ImportError:
+    METRICS_AVAILABLE = False
+    
+# ----------------------------------------
+# Utility: check env bools
+# ----------------------------------------
+def is_env_true(key: str, default: str = "true") -> bool:
+    """
+    Returns True if the environment variable is set to a truthy value.
+    Accepted truthy values: "1", "true", "yes"
+    """
+    return os.getenv(key, default).lower() in ("1", "true", "yes")
+
+# ----------------------------------------
+# Monitoring Settings
+# ----------------------------------------
+class MonitoringSettings(BaseSettings):
+    """
+    Monitoring and metrics settings.
+    """
+    enable_metrics: bool = METRICS_AVAILABLE and is_env_true("ENABLE_METRICS")
+
+    class Config:
+        env_prefix = "MONITORING_"
+
+# --- Helper to load YAML or JSON configs
+def load_config_file() -> Dict[str, Any]:
+    for path in CONFIG_PATHS:
+        if path.exists():
+            with open(path, "r", encoding="utf-8") as f:
+                if path.suffix in [".yaml", ".yml"]:
+                    return yaml.safe_load(f)
+                elif path.suffix == ".json":
+                    return json.load(f)
+    return {}
+
+
+# --- Sub-sections
 class DatabaseSettings(BaseSettings):
     """Database configuration with optimization settings"""
-    url: str = Field(default="sqlite+aiosqlite:///./app.db", env="DATABASE_URL")
+    url: str = Field(default="sqlite+aiosqlite:///./database.db", env="DATABASE_URL")
+    #database_settings = DatabaseSettings()
+    
     pool_size: int = Field(default=20, env="DB_POOL_SIZE")
     max_overflow: int = Field(default=30, env="DB_MAX_OVERFLOW")
     pool_timeout: int = Field(default=30, env="DB_POOL_TIMEOUT")
@@ -50,7 +101,17 @@ class SecuritySettings(BaseSettings):
 
 class MonitoringSettings(BaseSettings):
     """Monitoring and observability configuration"""
-    enable_metrics: bool = Field(default=True, env="ENABLE_METRICS")
+    enable_metrics: bool = Field(default=True, env="MONITORING_ENABLED")
+    
+    # Thresholds for internal performance alerts
+    perf_threshold_warning: float = Field(5.0, env="PERF_THRESHOLD_WARNING")
+    perf_threshold_error: float = Field(30.0, env="PERF_THRESHOLD_ERROR")
+    
+    # Prometheus metrics thresholds
+    threshold_high_latency: float = Field(5.0, env="MONITORING_THRESHOLD_HIGH_LATENCY")
+    threshold_high_error_rate: float = Field(0.1, env="MONITORING_THRESHOLD_HIGH_ERROR_RATE")
+    threshold_low_cache_hit_ratio: float = Field(0.7, env="MONITORING_THRESHOLD_LOW_CACHE_HIT_RATIO")
+    threshold_high_ai_cost_hourly: float = Field(50.0, env="MONITORING_THRESHOLD_HIGH_AI_COST_HOURLY")
     metrics_port: int = Field(default=9090, env="METRICS_PORT")
     
     # Logging
@@ -97,6 +158,8 @@ class AppSettings(BaseSettings):
     enable_graphql: bool = Field(default=False, env="ENABLE_GRAPHQL")
     enable_admin_panel: bool = Field(default=True, env="ENABLE_ADMIN_PANEL")
     
+    enable_metrics: bool = Field(default=METRICS_AVAILABLE)
+    
     # Sub-configurations
     database: DatabaseSettings = Field(default_factory=DatabaseSettings)
     redis: RedisSettings = Field(default_factory=RedisSettings)
@@ -119,7 +182,17 @@ class AppSettings(BaseSettings):
 @lru_cache()
 def get_settings() -> AppSettings:
     """Get cached application settings"""
-    return AppSettings()
+    try:
+        file_config = load_config_file()
+        return AppSettings(**file_config)
+    except ValidationError as e:
+        print("\u274c Configuration validation failed:")
+        print(e.json(indent=2))
+        raise SystemExit(1)
+    except Exception as e:
+        print("\u274c Failed to load configuration:", str(e))
+        raise SystemExit(1)
 
-# Global settings instance
+
+# --- Global instance
 settings = get_settings()

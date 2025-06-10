@@ -1,0 +1,34 @@
+
+Структурная схема production-ready проекта
+# https://github.com/copilot/c/8b8c397d-00fb-4ec3-be1a-bbf971e674b6#copilot-chat-textarea
+
+ai_aggregator_pro/
+├── main.py                       # Entrypoint, FastAPI app, lifespan
+├── config.py                     # Settings, env, secrets, security
+├── models.py                     # Pydantic schemas: AI, Product, Analytics, Admin
+├── api/
+│   ├── endpoints.py              # API endpoints, routers
+│   ├── dependencies.py           # Dependency injection (DI)
+│   └── __init__.py
+├── services/
+│   ├── ai_service.py             # AI logic, provider abstraction
+│   ├── product_service.py        # Product logic
+│   ├── analytics_service.py      # Analytics logic
+│   └── __init__.py
+├── infra/
+│   ├── resource_manager.py       # ResourceManager, lifecycle, DI
+│   ├── cache.py                  # Cache abstraction, Redis
+│   ├── db.py                     # DB abstraction
+│   └── __init__.py
+├── middleware/
+│   ├── logging_middleware.py
+│   ├── security_middleware.py
+│   └── metrics_middleware.py
+├── monitoring/
+│   ├── prometheus.py
+│   └── health.py
+├── tests/
+│   └── ...                       # Unit tests, integration tests
+├── requirements.txt
+├── Dockerfile
+└── README.md

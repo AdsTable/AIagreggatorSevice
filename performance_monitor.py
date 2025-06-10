@@ -16,6 +16,7 @@ from typing import (
     TypeVar, Union, Protocol, runtime_checkable
 )
 from collections import defaultdict, deque
+from prometheus_client import CollectorRegistry, Counter
 
 # Type definitions for better code clarity
 F = TypeVar('F', bound=Callable[..., Any])
@@ -121,9 +122,24 @@ class MetricsCollector(Protocol):
 class PrometheusMetricsCollector:
     """Prometheus metrics collector implementation"""
     
-    def __init__(self):
-        self.enabled = False
-        self._setup_prometheus()
+    def __init__(self, enabled=True):
+        """
+        Initialize Prometheus metrics collector.
+
+        Args:
+            enabled (bool): Enable or disable metrics collection.
+        """
+        self.enabled = enabled
+        # Initialize other components
+
+    def collect(self):
+        if not self.enabled:
+            return
+        # collect metrics
+        if registry is not None and not isinstance(registry, CollectorRegistry):
+            raise TypeError("registry must be a CollectorRegistry instance or None")
+
+        self.registry = registry or CollectorRegistry()
     
     def _setup_prometheus(self) -> None:
         """Setup Prometheus metrics if available"""
@@ -131,9 +147,20 @@ class PrometheusMetricsCollector:
             from prometheus_client import Counter, Histogram, Gauge
             
             self.request_counter = Counter(
-                'ai_operations_total', 
-                'Total AI operations',
-                ['operation', 'provider', 'status', 'error_type']
+            'ai_operations_total',
+            'Total AI operations',
+            ['operation', 'provider', 'status', 'error_type'],
+            registry=self.registry
+            )
+            self.created_counter = Counter(
+                'ai_operations_created',
+                'Created AI operations',
+                registry=self.registry
+            )
+            self.operations_gauge = Counter(
+                'ai_operations',
+                'In-progress AI operations',
+                registry=self.registry
             )
             
             self.duration_histogram = Histogram(

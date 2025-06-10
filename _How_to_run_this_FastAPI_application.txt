@@ -69,6 +69,8 @@ make dev
 
 uvicorn main:app --reload
 
+streamlit run main.py --server.headless=True
+
    RUN TESTS
 *****************
 # Запуск каждого файла отдельно с детальной отчетностью
