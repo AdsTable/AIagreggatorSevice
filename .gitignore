@@ -2,7 +2,6 @@
 /.hypothesis
 /__pycache__
 database.db
-/Dev_doc
 /services/__pycache__
 /tests/__pycache__
 /temp/test_attemp_Version/__pycache__

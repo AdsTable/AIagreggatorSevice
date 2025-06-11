@@ -6,6 +6,7 @@ import sys
 import time
 import asyncio
 import logging
+import platform
 from typing import Dict, Any, Optional, List
 from datetime import datetime, timedelta
 from dataclasses import dataclass, field
@@ -14,9 +15,8 @@ from contextlib import contextmanager
 # Prometheus metrics (optional)
 try:
     from prometheus_client import Counter, Histogram, Gauge, REGISTRY, generate_latest
-    METRICS_AVAILABLE = True
+    METRICS_AVAILABLE = True # Define metrics
     
-    # Define metrics
     def safe_register_counter(name, documentation, labelnames):
         try:
             return Counter(name, documentation, labelnames)
@@ -43,12 +43,25 @@ class MetricValue:
     metadata: Dict[str, Any] = field(default_factory=dict)
 
 class MetricsCollector:
-    """Advanced metrics collection and analysis"""
+    """Thread-safe metrics collector with singleton pattern"""
     
-    def __init__(self, registry: Optional[CollectorRegistry] = None):
-        self.registry = registry or CollectorRegistry()
-        self.custom_metrics: Dict[str, List[MetricValue]] = {}
-        self._setup_prometheus_metrics()
+    _instance = None
+    _initialized = False
+    
+    @classmethod
+    def new(cls, registry: Optional[CollectorRegistry] = None):
+        if cls._instance is None:
+            cls._instance = super(MetricsCollector, cls).new(cls)
+        return cls._instance
+
+    def init(self, registry: Optional[CollectorRegistry] = None):
+        if not self._initialized:
+            self.registry = registry or CollectorRegistry()
+            self.custom_metrics: Dict[str, List[MetricValue]] = {}
+            self.prometheus_metrics: Dict[str, Any] = {}
+            
+            if PROMETHEUS_AVAILABLE:
+                self._setup_prometheus_metrics()
         self.python_version = platform.python_version()  # Get current Python version dynamically
         
     def _safe_register_counter(self, name, documentation, labelnames):
@@ -67,71 +80,71 @@ class MetricsCollector:
             return REGISTRY._names_to_collectors[name]
     
     def _setup_prometheus_metrics(self):
-    if not PROMETHEUS_AVAILABLE:
-        logger.warning("Prometheus client not available")
-        return
-
-    # AI-related
-    self.ai_requests = self._safe_register_counter(
-        'ai_requests_total', 'Total AI provider requests',
-        ['provider', 'model', 'status']
-    )
-
-    self.ai_latency = self._safe_register_histogram(
-        'ai_request_latency_seconds', 'AI request latency',
-        ['provider', 'model']
-    )
-
-    self.ai_tokens = self._safe_register_counter(
-        'ai_tokens_used_total', 'Total AI tokens consumed',
-        ['provider', 'model']
-    )
-
-    self.ai_cost = self._safe_register_counter(
-        'ai_cost_total_usd', 'Total AI cost in USD',
-        ['provider', 'model']
-    )
-
-    # Request/endpoint
-    self.request_count = self._safe_register_counter(
-        'ai_aggregator_requests_total', 'Total number of requests',
-        ['method', 'endpoint', 'status']
-    )
-
-    self.request_duration = self._safe_register_histogram(
-        'ai_aggregator_request_duration_seconds', 'Request duration in seconds',
-        ['method', 'endpoint']
-    )
-
-    # Cache
-    self.cache_operations = self._safe_register_counter(
-        'cache_operations_total', 'Cache operations',
-        ['operation', 'cache_type', 'result']
-    )
-
-    self.cache_hit_ratio = Gauge(
-        'cache_hit_ratio', 'Cache hit ratio', ['cache_type'], registry=self.registry
-    )
-
-    # System
-    self.active_connections = Gauge(
-        'active_connections_current', 'Current active connections', registry=self.registry
-    )
-
-    self.memory_usage = Gauge(
-        'memory_usage_bytes', 'Memory usage in bytes', ['type'], registry=self.registry
-    )
-
-    # Business logic
-    self.products_ingested = self._safe_register_counter(
-        'products_ingested_total', 'Total products ingested',
-        ['category', 'provider']
-    )
-
-    self.data_quality_score = self._safe_register_histogram(
-        'data_quality_score', 'Data quality score distribution',
-        ['category']
-    )
+        if not PROMETHEUS_AVAILABLE:
+            logger.warning("Prometheus client not available")
+            return
+        
+        # AI-related
+        self.ai_requests = self._safe_register_counter(
+            'ai_requests_total', 'Total AI provider requests',
+            ['provider', 'model', 'status']
+        )
+        
+        self.ai_latency = self._safe_register_histogram(
+            'ai_request_latency_seconds', 'AI request latency',
+            ['provider', 'model']
+        )
+        
+        self.ai_tokens = self._safe_register_counter(
+            'ai_tokens_used_total', 'Total AI tokens consumed',
+            ['provider', 'model']
+        )
+        
+        self.ai_cost = self._safe_register_counter(
+            'ai_cost_total_usd', 'Total AI cost in USD',
+            ['provider', 'model']
+        )
+        
+        # Request/endpoint
+        self.request_count = self._safe_register_counter(
+            'ai_aggregator_requests_total', 'Total number of requests',
+            ['method', 'endpoint', 'status']
+        )
+        
+        self.request_duration = self._safe_register_histogram(
+            'ai_aggregator_request_duration_seconds', 'Request duration in seconds',
+            ['method', 'endpoint']
+        )
+        
+        # Cache
+        self.cache_operations = self._safe_register_counter(
+            'cache_operations_total', 'Cache operations',
+            ['operation', 'cache_type', 'result']
+        )
+        
+        self.cache_hit_ratio = Gauge(
+            'cache_hit_ratio', 'Cache hit ratio', ['cache_type'],registry=self.registry
+        )
+        
+        # System
+        self.active_connections = Gauge(
+            'active_connections_current', 'Current active connections', registry=self.registry
+        )
+        
+        self.memory_usage = Gauge(
+            'memory_usage_bytes', 'Memory usage in bytes', ['type'], registry=self.registry
+        )
+        
+        # Business logic
+        self.products_ingested = self._safe_register_counter(
+            'products_ingested_total', 'Total products ingested',
+            ['category', 'provider']
+        )
+        
+        self.data_quality_score = self._safe_register_histogram(
+            'data_quality_score', 'Data quality score distribution',
+            ['category']
+        )
     
     @contextmanager
     def time_operation(self, operation_name: str, labels: Optional[Dict[str, str]] = None):
@@ -334,9 +347,12 @@ performance_monitor = PerformanceMonitor(metrics_collector)
 
 def setup_metrics_server(port: int = 9090):
     """Setup Prometheus metrics HTTP server"""
-    if PROMETHEUS_AVAILABLE and settings.monitoring.enable_metrics:
+    if PROMETHEUS_AVAILABLE:
         try:
+            from prometheus_client import start_http_server
             start_http_server(port, registry=metrics_collector.registry)
             logger.info(f"Metrics server started on port {port}")
         except Exception as e:
             logger.error(f"Failed to start metrics server: {e}")
+    else:
+        logger.warning("Prometheus not available - metrics server not started")

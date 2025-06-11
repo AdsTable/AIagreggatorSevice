@@ -23,6 +23,8 @@ from enum import Enum
 from contextlib import asynccontextmanager
 from functools import wraps
 from abc import ABC, abstractmethod
+from monitoring.metrics_manager import get_metrics_manager
+from monitoring.metrics import get_metrics
 
 # Third-party imports with error handling
 try:
@@ -42,17 +44,19 @@ except ImportError:
 
 try:
     from fastapi import (
-        FastAPI, HTTPException, Query, Request, BackgroundTasks, Response, Body
+        FastAPI, HTTPException, Depends, Query, Request, BackgroundTasks, Response, Body
     )
-    from fastapi.responses import JSONResponse, StreamingResponse
+    from fastapi.responses import JSONResponse, StreamingResponse, HTMLResponse
+    from fastapi.security import HTTPBearer
     from fastapi.middleware.cors import CORSMiddleware
     from fastapi.middleware.trustedhost import TrustedHostMiddleware
     from fastapi.middleware.gzip import GZipMiddleware
+    from starlette.middleware.base import BaseHTTPMiddleware
 except ImportError:
     raise ImportError("FastAPI is required. Install with: pip install fastapi uvicorn")
 
 try:
-    from pydantic import BaseModel, ConfigDict, field_validator, computed_field
+    from pydantic import BaseModel, ConfigDict, Field, field_validator, computed_field
 except ImportError:
     raise ImportError("Pydantic v2 is required. Install with: pip install 'pydantic>=2.0'")
 
@@ -70,7 +74,25 @@ except ImportError:
         Redis = None
 
 try:
-    from prometheus_client import Counter, Histogram, Gauge, generate_latest
+    from metrics_manager import get_metrics_manager
+    METRICS_MANAGER = True
+    # Define metrics using the manager
+    REQUEST_COUNT = metrics_manager.get_counter(
+        'ai_requests_total',
+        'Total AI requests processed', 
+        ['provider', 'status']
+    )
+    
+    RESPONSE_TIME = metrics_manager.get_counter(
+        'ai_response_time_seconds',
+        'AI response time in seconds',
+        ['provider']
+    )
+except ImportError:
+    METRICS_MANAGER = False
+
+try:
+    from prometheus_client import Counter, Histogram, Gauge, CollectorRegistry, start_http_server, generate_latest
     METRICS_AVAILABLE = True
     REQUEST_COUNT = Counter('ai_requests_total', 'Total AI requests processed', ['provider', 'status'])
     REQUEST_DURATION = Histogram('ai_request_duration_seconds', 'AI request processing duration')
@@ -3538,6 +3560,20 @@ async def comprehensive_request_middleware(request: Request, call_next):
         
         raise
 
+@app.middleware("http")
+async def metrics_middleware(request, call_next):
+    """Add metrics collection to all requests"""
+    start_time = time.time()
+    response = await call_next(request)
+    
+    # Record metrics
+    REQUEST_COUNT.labels(
+        provider=request.headers.get('ai-provider', 'unknown'),
+        status=str(response.status_code)
+    ).inc()
+    
+    return response
+
 # --- Core Endpoints ---
 @app.get("/", tags=["Root"], summary="Service Information")
 async def root():
@@ -5268,6 +5304,16 @@ async def get_metrics():
     except Exception as e:
         logger.error(f"Failed to generate metrics: {e}")
         raise HTTPException(status_code=500, detail=f"Metrics generation failed: {str(e)}")
+
+@app.get("/metrics")
+async def metrics():
+    """Expose Prometheus metrics"""
+    from prometheus_client import generate_latest
+    return Response(
+        generate_latest(metrics_manager._registry),
+        media_type="text/plain"
+    )
+
 
 @app.get("/system/performance", tags=["System Information"], summary="Get Performance Analytics")
 async def get_performance_analytics(
@@ -11962,6 +12008,11 @@ async def final_service_shutdown():
         
     except Exception as e:
         logger.error(f"Advanced service shutdown failed: {e}")
+
+@app.on_event("shutdown")
+async def cleanup():
+    """Clean up metrics on shutdown"""
+    metrics_manager.clear_metrics()
 
 # --- Final Service Metadata and Version Information ---
 
