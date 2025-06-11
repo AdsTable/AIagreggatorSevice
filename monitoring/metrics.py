@@ -1,4 +1,4 @@
-# monitoring/metrics.py - Comprehensive monitoring with custom metrics
+# monitoring/metrics.py - Comprehensive monitoring with thread-safe metrics
 from __future__ import annotations
 
 import os
@@ -6,33 +6,47 @@ import sys
 import time
 import asyncio
 import logging
+import threading
 import platform
 from typing import Dict, Any, Optional, List
 from datetime import datetime, timedelta
 from dataclasses import dataclass, field
 from contextlib import contextmanager
 
+# Thread-safe metrics management
+_metrics_lock = threading.Lock()
+_metrics_registry = None
+
 # Prometheus metrics (optional)
 try:
-    from prometheus_client import Counter, Histogram, Gauge, REGISTRY, generate_latest
-    METRICS_AVAILABLE = True # Define metrics
-    
-    def safe_register_counter(name, documentation, labelnames):
-        try:
-            return Counter(name, documentation, labelnames)
-        except ValueError:
-            # Metric already exists, return the existing one
-            return REGISTRY._names_to_collectors[name]    
-  
-except ImportError:
-    METRICS_AVAILABLE = False
+    from prometheus_client import (
+        Counter, Histogram, Gauge, CollectorRegistry, 
+        generate_latest, start_http_server, REGISTRY
+    )
     PROMETHEUS_AVAILABLE = True
 except ImportError:
     PROMETHEUS_AVAILABLE = False
 
-from config.settings import settings
-
 logger = logging.getLogger(__name__)
+
+def metric_exists(name: str) -> bool:
+    return name in REGISTRY._names_to_collectors
+
+def get_or_create_counter(name, description, labelnames=None):
+    if metric_exists(name):
+        return REGISTRY._names_to_collectors[name]
+    return Counter(name, description, labelnames or [])
+
+def get_or_create_histogram(name, description, labelnames=None):
+    if metric_exists(name):
+        return REGISTRY._names_to_collectors[name]
+    return Histogram(name, description, labelnames or [])
+
+def get_or_create_gauge(name, description, labelnames=None):
+    if metric_exists(name):
+        return REGISTRY._names_to_collectors[name]
+    return Gauge(name, description, labelnames or [])
+
 
 @dataclass
 class MetricValue:
@@ -42,110 +56,119 @@ class MetricValue:
     labels: Dict[str, str] = field(default_factory=dict)
     metadata: Dict[str, Any] = field(default_factory=dict)
 
-class MetricsCollector:
-    """Thread-safe metrics collector with singleton pattern"""
+class ThreadSafeMetricsCollector:
+    """Thread-safe metrics collection and analysis"""
     
-    _instance = None
-    _initialized = False
-    
-    @classmethod
-    def new(cls, registry: Optional[CollectorRegistry] = None):
-        if cls._instance is None:
-            cls._instance = super(MetricsCollector, cls).new(cls)
-        return cls._instance
-
-    def init(self, registry: Optional[CollectorRegistry] = None):
-        if not self._initialized:
-            self.registry = registry or CollectorRegistry()
-            self.custom_metrics: Dict[str, List[MetricValue]] = {}
-            self.prometheus_metrics: Dict[str, Any] = {}
-            
-            if PROMETHEUS_AVAILABLE:
-                self._setup_prometheus_metrics()
-        self.python_version = platform.python_version()  # Get current Python version dynamically
+    def __init__(self, use_custom_registry: bool = True):
+        self._lock = threading.Lock()
+        self._registry = CollectorRegistry() if use_custom_registry else None
+        self.custom_metrics: Dict[str, List[MetricValue]] = {}
+        self._prometheus_metrics: Dict[str, Any] = {}
+        self.python_version = platform.python_version()
         
-    def _safe_register_counter(self, name, documentation, labelnames):
-        try:
-            return Counter(name, documentation, labelnames, registry=self.registry)
-        except ValueError:
-            return REGISTRY._names_to_collectors[name]
-
-    def _safe_register_histogram(self, name, documentation, labelnames=None, buckets=None):
-        try:
-            if buckets is not None:
-                return Histogram(name, documentation, labelnames or (), buckets=buckets, registry=self.registry)
-            else:
-                return Histogram(name, documentation, labelnames or (), registry=self.registry)
-        except ValueError:
-            return REGISTRY._names_to_collectors[name]
+        if PROMETHEUS_AVAILABLE:
+            self._setup_prometheus_metrics()
+    
+    def _safe_register_metric(self, metric_class, name: str, doc: str, 
+                            labelnames: Optional[List[str]] = None, **kwargs):
+        """Safely register a Prometheus metric avoiding duplicates"""
+        with self._lock:
+            if name in self._prometheus_metrics:
+                return self._prometheus_metrics[name]
+            
+            try:
+                metric = metric_class(
+                    name, 
+                    doc, 
+                    labelnames or [],
+                    registry=self._registry,
+                    **kwargs
+                )
+                self._prometheus_metrics[name] = metric
+                return metric
+            except ValueError as e:
+                if "Duplicated timeseries" in str(e):
+                    # Try to get existing metric
+                    logger.warning(f"Metric {name} already exists, attempting to retrieve")
+                    return self._get_existing_metric(name)
+                raise
+    
+    def _get_existing_metric(self, name: str):
+        """Get existing metric from registry"""
+        if self._registry:
+            for collector in list(self._registry._collector_to_names.keys()):
+                if hasattr(collector, '_name') and collector._name == name:
+                    return collector
+        raise ValueError(f"Could not retrieve existing metric: {name}")
     
     def _setup_prometheus_metrics(self):
+        """Setup Prometheus metrics with duplicate protection"""
         if not PROMETHEUS_AVAILABLE:
             logger.warning("Prometheus client not available")
             return
-        
-        # AI-related
-        self.ai_requests = self._safe_register_counter(
-            'ai_requests_total', 'Total AI provider requests',
+
+        # AI-related metrics
+        self.ai_requests = self._safe_register_metric(
+            Counter, 'ai_requests_total', 'Total AI provider requests',
             ['provider', 'model', 'status']
         )
-        
-        self.ai_latency = self._safe_register_histogram(
-            'ai_request_latency_seconds', 'AI request latency',
+
+        self.ai_latency = self._safe_register_metric(
+            Histogram, 'ai_request_latency_seconds', 'AI request latency',
             ['provider', 'model']
         )
-        
-        self.ai_tokens = self._safe_register_counter(
-            'ai_tokens_used_total', 'Total AI tokens consumed',
+
+        self.ai_tokens = self._safe_register_metric(
+            Counter, 'ai_tokens_used_total', 'Total AI tokens consumed',
             ['provider', 'model']
         )
-        
-        self.ai_cost = self._safe_register_counter(
-            'ai_cost_total_usd', 'Total AI cost in USD',
+
+        self.ai_cost = self._safe_register_metric(
+            Counter, 'ai_cost_total_usd', 'Total AI cost in USD',
             ['provider', 'model']
         )
-        
-        # Request/endpoint
-        self.request_count = self._safe_register_counter(
-            'ai_aggregator_requests_total', 'Total number of requests',
+
+        # Request/endpoint metrics
+        self.request_count = self._safe_register_metric(
+            Counter, 'ai_aggregator_requests_total', 'Total number of requests',
             ['method', 'endpoint', 'status']
         )
-        
-        self.request_duration = self._safe_register_histogram(
-            'ai_aggregator_request_duration_seconds', 'Request duration in seconds',
+
+        self.request_duration = self._safe_register_metric(
+            Histogram, 'ai_aggregator_request_duration_seconds', 'Request duration in seconds',
             ['method', 'endpoint']
         )
-        
-        # Cache
-        self.cache_operations = self._safe_register_counter(
-            'cache_operations_total', 'Cache operations',
+
+        # Cache metrics
+        self.cache_operations = self._safe_register_metric(
+            Counter, 'cache_operations_total', 'Cache operations',
             ['operation', 'cache_type', 'result']
         )
-        
-        self.cache_hit_ratio = Gauge(
-            'cache_hit_ratio', 'Cache hit ratio', ['cache_type'],registry=self.registry
+
+        self.cache_hit_ratio = self._safe_register_metric(
+            Gauge, 'cache_hit_ratio', 'Cache hit ratio', ['cache_type']
         )
-        
-        # System
-        self.active_connections = Gauge(
-            'active_connections_current', 'Current active connections', registry=self.registry
+
+        # System metrics
+        self.active_connections = self._safe_register_metric(
+            Gauge, 'active_connections_current', 'Current active connections'
         )
-        
-        self.memory_usage = Gauge(
-            'memory_usage_bytes', 'Memory usage in bytes', ['type'], registry=self.registry
+
+        self.memory_usage = self._safe_register_metric(
+            Gauge, 'memory_usage_bytes', 'Memory usage in bytes', ['type']
         )
-        
-        # Business logic
-        self.products_ingested = self._safe_register_counter(
-            'products_ingested_total', 'Total products ingested',
+
+        # Business metrics
+        self.products_ingested = self._safe_register_metric(
+            Counter, 'products_ingested_total', 'Total products ingested',
             ['category', 'provider']
         )
-        
-        self.data_quality_score = self._safe_register_histogram(
-            'data_quality_score', 'Data quality score distribution',
+
+        self.data_quality_score = self._safe_register_metric(
+            Histogram, 'data_quality_score', 'Data quality score distribution',
             ['category']
         )
-    
+
     @contextmanager
     def time_operation(self, operation_name: str, labels: Optional[Dict[str, str]] = None):
         """Context manager for timing operations"""
@@ -165,7 +188,10 @@ class MetricsCollector:
             
             # Record to Prometheus if available
             if PROMETHEUS_AVAILABLE and hasattr(self, 'request_duration'):
-                self.request_duration.labels(**labels).observe(duration)
+                try:
+                    self.request_duration.labels(**labels).observe(duration)
+                except Exception as e:
+                    logger.warning(f"Failed to record Prometheus metric: {e}")
                 
         except Exception as e:
             duration = time.time() - start_time
@@ -180,20 +206,21 @@ class MetricsCollector:
     
     def record_custom_metric(self, name: str, value: float, labels: Optional[Dict[str, str]] = None):
         """Record a custom metric value"""
-        if name not in self.custom_metrics:
-            self.custom_metrics[name] = []
-        
-        metric_value = MetricValue(
-            value=value,
-            labels=labels or {},
-            timestamp=datetime.utcnow()
-        )
-        
-        self.custom_metrics[name].append(metric_value)
-        
-        # Keep only last 1000 values per metric
-        if len(self.custom_metrics[name]) > 1000:
-            self.custom_metrics[name] = self.custom_metrics[name][-1000:]
+        with self._lock:
+            if name not in self.custom_metrics:
+                self.custom_metrics[name] = []
+            
+            metric_value = MetricValue(
+                value=value,
+                labels=labels or {},
+                timestamp=datetime.utcnow()
+            )
+            
+            self.custom_metrics[name].append(metric_value)
+            
+            # Keep only last 1000 values per metric
+            if len(self.custom_metrics[name]) > 1000:
+                self.custom_metrics[name] = self.custom_metrics[name][-1000:]
     
     def record_ai_request(
         self, 
@@ -208,10 +235,13 @@ class MetricsCollector:
         labels = {"provider": provider, "model": model or "unknown"}
         
         if PROMETHEUS_AVAILABLE:
-            self.ai_requests.labels(**labels, status=status).inc()
-            self.ai_tokens.labels(**labels).inc(tokens)
-            self.ai_cost.labels(**labels).inc(cost)
-            self.ai_latency.labels(**labels).observe(latency)
+            try:
+                self.ai_requests.labels(**labels, status=status).inc()
+                self.ai_tokens.labels(**labels).inc(tokens)
+                self.ai_cost.labels(**labels).inc(cost)
+                self.ai_latency.labels(**labels).observe(latency)
+            except Exception as e:
+                logger.warning(f"Failed to record Prometheus AI metrics: {e}")
         
         # Custom metrics
         self.record_custom_metric("ai_request_tokens", tokens, labels)
@@ -223,15 +253,21 @@ class MetricsCollector:
         result = "hit" if hit else "miss"
         labels = {"operation": operation, "cache_type": cache_type, "result": result}
         
-        if PROMETHEUS_AVAILABLE:
-            self.cache_operations.labels(**labels).inc()
+        if PROMETHEUS_AVAILABLE and hasattr(self, 'cache_operations'):
+            try:
+                self.cache_operations.labels(**labels).inc()
+            except Exception as e:
+                logger.warning(f"Failed to record cache metrics: {e}")
         
         self.record_custom_metric("cache_operation", 1, labels)
     
     def update_cache_hit_ratio(self, cache_type: str, hit_ratio: float):
         """Update cache hit ratio gauge"""
-        if PROMETHEUS_AVAILABLE:
-            self.cache_hit_ratio.labels(cache_type=cache_type).set(hit_ratio)
+        if PROMETHEUS_AVAILABLE and hasattr(self, 'cache_hit_ratio'):
+            try:
+                self.cache_hit_ratio.labels(cache_type=cache_type).set(hit_ratio)
+            except Exception as e:
+                logger.warning(f"Failed to update cache hit ratio: {e}")
         
         self.record_custom_metric("cache_hit_ratio", hit_ratio, {"cache_type": cache_type})
     
@@ -240,48 +276,82 @@ class MetricsCollector:
         cutoff_time = datetime.utcnow() - timedelta(hours=hours)
         summary = {}
         
-        for metric_name, values in self.custom_metrics.items():
-            recent_values = [
-                v for v in values 
-                if v.timestamp >= cutoff_time
-            ]
-            
-            if recent_values:
-                summary[metric_name] = {
-                    "count": len(recent_values),
-                    "sum": sum(v.value for v in recent_values),
-                    "avg": sum(v.value for v in recent_values) / len(recent_values),
-                    "min": min(v.value for v in recent_values),
-                    "max": max(v.value for v in recent_values),
-                    "latest": recent_values[-1].value,
-                    "timestamp": recent_values[-1].timestamp.isoformat()
-                }
+        with self._lock:
+            for metric_name, values in self.custom_metrics.items():
+                recent_values = [
+                    v for v in values 
+                    if v.timestamp >= cutoff_time
+                ]
+                
+                if recent_values:
+                    summary[metric_name] = {
+                        "count": len(recent_values),
+                        "sum": sum(v.value for v in recent_values),
+                        "avg": sum(v.value for v in recent_values) / len(recent_values),
+                        "min": min(v.value for v in recent_values),
+                        "max": max(v.value for v in recent_values),
+                        "latest": recent_values[-1].value,
+                        "timestamp": recent_values[-1].timestamp.isoformat()
+                    }
         
         return summary
     
     def export_prometheus_metrics(self) -> str:
         """Export metrics in Prometheus format"""
-        if PROMETHEUS_AVAILABLE:
-            return generate_latest(self.registry).decode('utf-8')
+        if PROMETHEUS_AVAILABLE and self._registry:
+            return generate_latest(self._registry).decode('utf-8')
         return "# Prometheus client not available\n"
+    
+    def clear_metrics(self):
+        """Clear all metrics (useful for testing)"""
+        with self._lock:
+            self.custom_metrics.clear()
+            if self._registry:
+                # Clear Prometheus registry
+                collectors = list(self._registry._collector_to_names.keys())
+                for collector in collectors:
+                    try:
+                        self._registry.unregister(collector)
+                    except (KeyError, ValueError):
+                        pass
+                self._prometheus_metrics.clear()
+
+# Global metrics collector factory
+def get_metrics_collector() -> ThreadSafeMetricsCollector:
+    """Get global metrics collector instance"""
+    global _metrics_registry
+    with _metrics_lock:
+        if _metrics_registry is None:
+            _metrics_registry = ThreadSafeMetricsCollector(use_custom_registry=True)
+        return _metrics_registry
 
 # Global metrics collector instance
-metrics_collector = MetricsCollector()
+metrics_collector = get_metrics_collector()
 
 class PerformanceMonitor:
     """Real-time performance monitoring and alerting"""
     
-    def __init__(self, metrics_collector: MetricsCollector):
+    def __init__(self, metrics_collector: ThreadSafeMetricsCollector):
         self.metrics = metrics_collector
         self.alerts: List[Dict[str, Any]] = []
         
-        from config.settings import settings        
-        self.thresholds = {
-            "high_latency": settings.monitoring.threshold_high_latency,
-            "high_error_rate": settings.monitoring.threshold_high_error_rate,
-            "low_cache_hit_ratio": settings.monitoring.threshold_low_cache_hit_ratio,
-            "high_ai_cost_hourly": settings.monitoring.threshold_high_ai_cost_hourly,
-        }
+        # Import settings here to avoid circular imports
+        try:
+            from config.settings import settings
+            self.thresholds = {
+                "high_latency": settings.monitoring.threshold_high_latency,
+                "high_error_rate": settings.monitoring.threshold_high_error_rate,
+                "low_cache_hit_ratio": settings.monitoring.threshold_low_cache_hit_ratio,
+                "high_ai_cost_hourly": settings.monitoring.threshold_high_ai_cost_hourly,
+            }
+        except ImportError:
+            logger.warning("Could not import settings, using default thresholds")
+            self.thresholds = {
+                "high_latency": 5.0,
+                "high_error_rate": 0.1,
+                "low_cache_hit_ratio": 0.7,
+                "high_ai_cost_hourly": 50.0,
+            }
     
     def check_thresholds(self) -> List[Dict[str, Any]]:
         """Check if any metrics exceed thresholds"""
@@ -349,10 +419,29 @@ def setup_metrics_server(port: int = 9090):
     """Setup Prometheus metrics HTTP server"""
     if PROMETHEUS_AVAILABLE:
         try:
-            from prometheus_client import start_http_server
-            start_http_server(port, registry=metrics_collector.registry)
-            logger.info(f"Metrics server started on port {port}")
+            # Import settings here to avoid circular imports
+            from config.settings import settings
+            if settings.monitoring.enable_metrics:
+                start_http_server(port, registry=metrics_collector._registry)
+                logger.info(f"Metrics server started on port {port}")
+        except ImportError:
+            logger.warning("Could not import settings for metrics server")
         except Exception as e:
             logger.error(f"Failed to start metrics server: {e}")
-    else:
-        logger.warning("Prometheus not available - metrics server not started")
+
+# Convenience function for backwards compatibility
+def get_metrics():
+    """Get metrics in Prometheus format"""
+    return metrics_collector.export_prometheus_metrics()
+
+# Export public API
+__all__ = [
+    'metrics_collector',
+    'performance_monitor', 
+    'setup_metrics_server',
+    'get_metrics',
+    'get_metrics_collector',
+    'ThreadSafeMetricsCollector',
+    'PerformanceMonitor',
+    'MetricValue'
+]

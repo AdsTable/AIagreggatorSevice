@@ -24,7 +24,14 @@ from contextlib import asynccontextmanager
 from functools import wraps
 from abc import ABC, abstractmethod
 from monitoring.metrics_manager import get_metrics_manager
-from monitoring.metrics import get_metrics
+
+#from monitoring.metrics import get_metrics
+
+from monitoring.metrics import (
+    get_or_create_counter,
+    get_or_create_histogram,
+    get_or_create_gauge
+)
 
 # Third-party imports with error handling
 try:
@@ -73,6 +80,9 @@ except ImportError:
         REDIS_AVAILABLE = False
         Redis = None
 
+# Initialize metrics manager
+metrics_manager = get_metrics_manager()
+
 try:
     from metrics_manager import get_metrics_manager
     METRICS_MANAGER = True
@@ -94,14 +104,7 @@ except ImportError:
 try:
     from prometheus_client import Counter, Histogram, Gauge, CollectorRegistry, start_http_server, generate_latest
     METRICS_AVAILABLE = True
-    REQUEST_COUNT = Counter('ai_requests_total', 'Total AI requests processed', ['provider', 'status'])
-    REQUEST_DURATION = Histogram('ai_request_duration_seconds', 'AI request processing duration')
-    CACHE_HITS = Counter('cache_hits_total', 'Cache hit operations', ['cache_type'])
-    ACTIVE_CONNECTIONS = Gauge('active_connections', 'Currently active connections')
-    TOKEN_USAGE = Counter('tokens_used_total', 'Total tokens consumed', ['provider'])
-    ERROR_COUNT = Counter('errors_total', 'Total errors encountered', ['error_type'])
-    CUSTOM_PROVIDER_REQUESTS = Counter('custom_provider_requests_total', 'Requests to custom providers', ['provider', 'status'])
-    CUSTOM_PROVIDER_DURATION = Histogram('custom_provider_duration_seconds', 'Custom provider response time', ['provider'])
+    
 except ImportError:
     METRICS_AVAILABLE = False
 
@@ -5314,6 +5317,16 @@ async def metrics():
         media_type="text/plain"
     )
 
+from prometheus_client import Counter, REGISTRY
+
+def metric_exists(name: str) -> bool:
+    return name in REGISTRY._names_to_collectors
+
+if not metric_exists('ai_requests_total'):
+    REQUEST_COUNT = Counter('ai_requests_total', 'Total AI requests processed', ['provider', 'status'])
+else:
+    # Safely fetch the existing metric if needed
+    REQUEST_COUNT = REGISTRY._names_to_collectors['ai_requests_total']
 
 @app.get("/system/performance", tags=["System Information"], summary="Get Performance Analytics")
 async def get_performance_analytics(
