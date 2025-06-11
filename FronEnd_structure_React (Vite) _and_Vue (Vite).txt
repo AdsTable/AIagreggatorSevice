@@ -1,0 +1,25 @@
+структура для React (Vite) и Vue (Vite)
+
+frontend/
+├── public/
+│   └── index.html
+├── src/
+│   ├── api/               # запросы к backend (axios/fetch)
+│   ├── assets/            # изображения, логотипы иконки
+│   ├── components/        # переиспользуемые компоненты
+│   ├── layouts/           # layout-обертки (MainLayout, AuthLayout)
+│   ├── pages/
+│   │   ├── Dashboard.jsx
+│   │   ├── Providers.jsx
+│   │   ├── Analytics.jsx
+│   │   ├── Diagnostics.jsx
+│   │   ├── Login.jsx
+│   │   └── NotFound.jsx
+│   ├── App.jsx
+│   ├── main.jsx
+│   ├── routes.jsx         # маршрутизация react-router-dom
+│   ├── store/             # state management (например, Redux, Pinia)
+│   └── styles/            # глобальные стили (main.css, variables.css)
+├── package.json
+├── vite.config.js
+└── README.md

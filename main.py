@@ -25,6 +25,36 @@ from functools import wraps
 from abc import ABC, abstractmethod
 from monitoring.metrics_manager import get_metrics_manager
 
+# Analytics and monitoring imports
+from datetime import datetime, timezone
+from typing import Dict, Any, List, Optional
+import json
+import asyncio
+from pydantic import BaseModel, Field
+
+# Analytics models
+class AnalyticsEvent(BaseModel):
+    """Model for analytics events from frontend"""
+    event: str = Field(..., description="Event name")
+    properties: Dict[str, Any] = Field(default_factory=dict, description="Event properties")
+    timestamp: str = Field(..., description="Event timestamp in ISO format")
+    anonymousId: Optional[str] = Field(None, description="Anonymous user ID")
+    sessionId: Optional[str] = Field(None, description="Session ID")
+    userAgent: Optional[str] = Field(None, description="User agent string")
+    url: Optional[str] = Field(None, description="Page URL")
+
+class AnalyticsError(BaseModel):
+    """Model for analytics error reports"""
+    error: str = Field(..., description="Error message")
+    stack: Optional[str] = Field(None, description="Error stack trace")
+    userAgent: str = Field(..., description="User agent string")
+    url: str = Field(..., description="Page URL where error occurred")
+    timestamp: str = Field(..., description="Error timestamp in ISO format")
+
+# Analytics storage (in production, use a proper database)
+analytics_events: List[Dict[str, Any]] = []
+analytics_errors: List[Dict[str, Any]] = []
+
 #from monitoring.metrics import get_metrics
 
 from monitoring.metrics import (
@@ -5468,6 +5498,328 @@ async def get_performance_analytics(
         logger.error(f"Performance analytics failed: {e}")
         raise HTTPException(status_code=500, detail=f"Performance analytics failed: {str(e)}")
 
+# Analytics endpoints
+@app.post("/api/analytics/track", tags=["Analytics"], summary="Track Analytics Event")
+async def track_analytics_event(
+    event: AnalyticsEvent,
+    request: Request,
+    background_tasks: BackgroundTasks
+) -> Dict[str, Any]:
+    """
+    Server-side analytics tracking endpoint.
+    Handles analytics events when client-side tracking is blocked.
+    
+    Args:
+        event: Analytics event data
+        request: FastAPI request object
+        background_tasks: Background tasks for async processing
+    
+    Returns:
+        Success confirmation
+    """
+    try:
+        # Add request metadata
+        event_data = event.dict()
+        event_data.update({
+            "server_timestamp": datetime.now(timezone.utc).isoformat(),
+            "client_ip": request.client.host,
+            "user_agent": request.headers.get("user-agent", ""),
+            "referer": request.headers.get("referer", ""),
+            "source": "server_side_fallback"
+        })
+        
+        # Store event (in production, use proper database)
+        analytics_events.append(event_data)
+        
+        # Process analytics in background
+        background_tasks.add_task(process_analytics_event, event_data)
+        
+        logger.info(f"📊 Analytics event tracked: {event.event}")
+        
+        return {
+            "success": True,
+            "message": "Event tracked successfully",
+            "timestamp": event_data["server_timestamp"]
+        }
+        
+    except Exception as e:
+        logger.error(f"Analytics tracking error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Analytics tracking failed")
+
+@app.post("/api/monitoring/analytics-error", tags=["Monitoring"], summary="Report Analytics Error")
+async def report_analytics_error(
+    error: AnalyticsError,
+    request: Request
+) -> Dict[str, str]:
+    """
+    Report analytics errors for monitoring and debugging.
+    
+    Args:
+        error: Error details
+        request: FastAPI request object
+    
+    Returns:
+        Error report confirmation
+    """
+    try:
+        # Add request metadata
+        error_data = error.dict()
+        error_data.update({
+            "server_timestamp": datetime.now(timezone.utc).isoformat(),
+            "client_ip": request.client.host,
+            "reported_from": "client_side"
+        })
+        
+        # Store error (in production, use proper monitoring service)
+        analytics_errors.append(error_data)
+        
+        logger.warning(f"🚨 Analytics error reported: {error.error}")
+        
+        return {
+            "success": True,
+            "message": "Error reported successfully"
+        }
+        
+    except Exception as e:
+        logger.error(f"Error reporting failed: {str(e)}")
+        return {
+            "success": False,
+            "message": "Error reporting failed"
+        }
+
+@app.get("/api/analytics/status", tags=["Analytics"], summary="Get Analytics Status")
+async def get_analytics_status(
+    request: Request,
+    include_recent_events: bool = False
+) -> Dict[str, Any]:
+    """
+    Get analytics system status and statistics.
+    
+    Args:
+        request: FastAPI request object
+        include_recent_events: Whether to include recent events in response
+    
+    Returns:
+        Analytics status and statistics
+    """
+    try:
+        status = {
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "total_events": len(analytics_events),
+            "total_errors": len(analytics_errors),
+            "server_side_tracking": True,
+            "fallback_active": True
+        }
+        
+        # Calculate event statistics
+        if analytics_events:
+            recent_events = [
+                e for e in analytics_events 
+                if datetime.fromisoformat(e.get("server_timestamp", "1970-01-01T00:00:00+00:00").replace("Z", "+00:00")) 
+                > datetime.now(timezone.utc) - timedelta(hours=24)
+            ]
+            
+            status.update({
+                "events_last_24h": len(recent_events),
+                "most_common_events": get_event_frequency(recent_events),
+                "error_rate": len(analytics_errors) / len(analytics_events) * 100 if analytics_events else 0
+            })
+            
+            if include_recent_events:
+                status["recent_events"] = recent_events[-10:]  # Last 10 events
+        
+        return status
+        
+    except Exception as e:
+        logger.error(f"Analytics status error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to get analytics status")
+
+@app.get("/api/analytics/dashboard", tags=["Analytics"], summary="Analytics Dashboard Data")
+@rate_limit(requests_per_minute=30)  # Limit dashboard requests
+async def get_analytics_dashboard(
+    request: Request,
+    hours: int = 24
+) -> Dict[str, Any]:
+    """
+    Get analytics dashboard data for visualization.
+    
+    Args:
+        request: FastAPI request object
+        hours: Number of hours to include in analysis
+    
+    Returns:
+        Dashboard data with charts and statistics
+    """
+    try:
+        cutoff_time = datetime.now(timezone.utc) - timedelta(hours=hours)
+        
+        # Filter recent events
+        recent_events = [
+            e for e in analytics_events 
+            if datetime.fromisoformat(e.get("server_timestamp", "1970-01-01T00:00:00+00:00").replace("Z", "+00:00")) > cutoff_time
+        ]
+        
+        dashboard_data = {
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "period_hours": hours,
+            "summary": {
+                "total_events": len(recent_events),
+                "unique_sessions": len(set(e.get("sessionId") for e in recent_events if e.get("sessionId"))),
+                "unique_users": len(set(e.get("anonymousId") for e in recent_events if e.get("anonymousId"))),
+                "error_count": len([e for e in analytics_errors if datetime.fromisoformat(e.get("server_timestamp", "1970-01-01T00:00:00+00:00").replace("Z", "+00:00")) > cutoff_time])
+            },
+            "charts": {
+                "events_by_hour": get_events_by_hour(recent_events, hours),
+                "top_events": get_event_frequency(recent_events),
+                "ai_provider_usage": get_ai_provider_stats(recent_events),
+                "error_distribution": get_error_distribution(recent_events)
+            }
+        }
+        
+        return dashboard_data
+        
+    except Exception as e:
+        logger.error(f"Dashboard data error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to generate dashboard data")
+
+# Background task for processing analytics events
+async def process_analytics_event(event_data: Dict[str, Any]) -> None:
+    """
+    Process analytics event in background.
+    
+    Args:
+        event_data: Event data to process
+    """
+    try:
+        # Example processing tasks:
+        # 1. Send to external analytics services
+        # 2. Update business intelligence database
+        # 3. Generate real-time alerts
+        # 4. Calculate derived metrics
+        
+        event_name = event_data.get("event", "unknown")
+        
+        # Example: Track AI provider usage
+        if event_name == "ai_request":
+            await track_ai_provider_usage(event_data)
+        
+        # Example: Monitor error rates
+        elif event_name == "error":
+            await monitor_error_rates(event_data)
+        
+        # Example: Track user engagement
+        elif event_name in ["page_view", "feature_usage"]:
+            await track_user_engagement(event_data)
+        
+        logger.debug(f"📊 Processed analytics event: {event_name}")
+        
+    except Exception as e:
+        logger.error(f"Analytics processing error: {str(e)}")
+
+# Helper functions for analytics processing
+async def track_ai_provider_usage(event_data: Dict[str, Any]) -> None:
+    """Track AI provider usage statistics"""
+    try:
+        provider = event_data.get("properties", {}).get("provider", "unknown")
+        response_time = event_data.get("properties", {}).get("response_time", 0)
+        
+        # Update provider statistics (implement your logic here)
+        logger.debug(f"AI provider {provider} used, response time: {response_time}ms")
+        
+    except Exception as e:
+        logger.error(f"AI provider tracking error: {str(e)}")
+
+async def monitor_error_rates(event_data: Dict[str, Any]) -> None:
+    """Monitor application error rates"""
+    try:
+        error_type = event_data.get("properties", {}).get("error_type", "unknown")
+        
+        # Implement error rate monitoring logic
+        logger.debug(f"Error tracked: {error_type}")
+        
+    except Exception as e:
+        logger.error(f"Error monitoring failed: {str(e)}")
+
+async def track_user_engagement(event_data: Dict[str, Any]) -> None:
+    """Track user engagement metrics"""
+    try:
+        page = event_data.get("properties", {}).get("page", "unknown")
+        
+        # Implement engagement tracking logic
+        logger.debug(f"User engagement tracked for page: {page}")
+        
+    except Exception as e:
+        logger.error(f"Engagement tracking error: {str(e)}")
+
+# Utility functions for analytics
+def get_event_frequency(events: List[Dict[str, Any]]) -> Dict[str, int]:
+    """Get frequency count of events"""
+    frequency = {}
+    for event in events:
+        event_name = event.get("event", "unknown")
+        frequency[event_name] = frequency.get(event_name, 0) + 1
+    
+    # Return top 10 most frequent events
+    return dict(sorted(frequency.items(), key=lambda x: x[1], reverse=True)[:10])
+
+def get_events_by_hour(events: List[Dict[str, Any]], hours: int) -> List[Dict[str, Any]]:
+    """Get events grouped by hour"""
+    hourly_data = []
+    
+    for i in range(hours):
+        hour_start = datetime.now(timezone.utc) - timedelta(hours=i+1)
+        hour_end = datetime.now(timezone.utc) - timedelta(hours=i)
+        
+        hour_events = [
+            e for e in events 
+            if hour_start <= datetime.fromisoformat(e.get("server_timestamp", "1970-01-01T00:00:00+00:00").replace("Z", "+00:00")) < hour_end
+        ]
+        
+        hourly_data.append({
+            "hour": hour_start.strftime("%Y-%m-%d %H:00"),
+            "count": len(hour_events)
+        })
+    
+    return list(reversed(hourly_data))
+
+def get_ai_provider_stats(events: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """Get AI provider usage statistics"""
+    ai_events = [e for e in events if e.get("event") == "ai_request"]
+    
+    provider_stats = {}
+    for event in ai_events:
+        provider = event.get("properties", {}).get("provider", "unknown")
+        if provider not in provider_stats:
+            provider_stats[provider] = {
+                "count": 0,
+                "total_response_time": 0,
+                "avg_response_time": 0
+            }
+        
+        provider_stats[provider]["count"] += 1
+        response_time = event.get("properties", {}).get("response_time", 0)
+        provider_stats[provider]["total_response_time"] += response_time
+        
+        if provider_stats[provider]["count"] > 0:
+            provider_stats[provider]["avg_response_time"] = (
+                provider_stats[provider]["total_response_time"] / 
+                provider_stats[provider]["count"]
+            )
+    
+    return provider_stats
+
+def get_error_distribution(events: List[Dict[str, Any]]) -> Dict[str, int]:
+    """Get error distribution by type"""
+    error_events = [e for e in events if e.get("event") == "error"]
+    
+    error_distribution = {}
+    for event in error_events:
+        error_type = event.get("properties", {}).get("error_type", "unknown")
+        error_distribution[error_type] = error_distribution.get(error_type, 0) + 1
+    
+    return error_distribution
+
+
 # --- Final Application Setup ---
 
 if __name__ == "__main__":
@@ -6054,13 +6406,15 @@ background_manager = BackgroundTaskManager()
 
 # --- Enhanced Startup and Shutdown Handlers ---
 
+from fastapi.routing import APIRoute
+
 @app.on_event("startup")
 async def enhanced_startup():
     """Enhanced startup sequence with comprehensive initialization and validation."""
-    
+    import time
     startup_start = time.time()
     logger.info(f"🚀 Enhanced startup sequence initiated for {config.app_name} v{config.version}")
-    
+
     try:
         # Validate critical environment
         await _validate_startup_environment()
@@ -6084,7 +6438,13 @@ async def enhanced_startup():
         # Mark initialization as complete
         resources.initialization_complete = True
         startup_duration = time.time() - startup_start
-        
+
+        # Log all registered routes
+        logger.info("🔎 Registered API routes:")
+        for route in app.routes:
+            if isinstance(route, APIRoute):
+                logger.info(f"   ✅ {route.path} - {route.methods}")
+
         # Final startup summary
         logger.info(
             f"✅ Startup completed successfully in {startup_duration:.2f} seconds\n"
@@ -6096,11 +6456,10 @@ async def enhanced_startup():
             f"   💾 Cache: {'Enabled' if config.enable_cache else 'Disabled'}\n"
             f"   📈 Background tasks: {len(background_manager.tasks)} active"
         )
-        
+
     except Exception as e:
         logger.critical(f"💥 Startup failed: {e}")
         raise
-
 @app.on_event("shutdown")
 async def enhanced_shutdown():
     """Enhanced shutdown sequence with graceful cleanup and final reporting."""

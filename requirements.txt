@@ -1,39 +1,50 @@
 # requirements.txt - Python 3.13 Compatible Dependencies
+# No additional Python dependencies required
+# All functionality uses existing FastAPI, Pydantic, and standard library
+
+# FastAPI and related async frameworks
 fastapi>=0.104.0
 uvicorn[standard]>=0.24.0
+
+# Pydantic for data validation
 pydantic>=2.5.0
 pydantic-settings>=2.1.0
 
-boto3==1.35.36
-langchain_core==0.3.23
-pandas==2.2.3
-Requests==2.32.3
-# scrapegraphai==1.33.2
-streamlit==1.39.0
+# AWS SDK for Python
+boto3>=1.37.24  # Убедительная версия, удовлетворяющая всем зависимости
+# langchain-core requires a compatible version too
+langchain-core>=0.3.60,<1.0.0
 
+# Data manipulation and analysis
+pandas>=2.2.3
 
-# Database
+# HTTP requests library
+requests>=2.32.3
+
+# Streamlit for web app development
+streamlit>=1.39.0,<2.0.0
+
+# Database support
 sqlalchemy[asyncio]>=2.0.23
 aiosqlite>=0.19.0
 
-# Redis (with fallback)
-redis>=5.0.1
-aioredis>=2.0.1
+# Redis (Python 3.13 compatible)
+redis[hiredis]>=5.0.1
+# REMOVED: aioredis>=2.0.1  # Has Python 3.13 compatibility issues
 
-# HTTP and async
+# HTTP and async libraries
 aiohttp>=3.9.1
 aiofiles>=23.2.0
 httpx>=0.25.2
 
-# Utilities
+# Utilities for environment variables and YAML processing
 python-dotenv>=1.0.0
 pyyaml>=6.0.1
-requests>=2.31.0
 
 # Monitoring (optional)
 prometheus-client>=0.19.0
 
-# Development
+# Development tools
 pytest>=7.4.3
 pytest-asyncio>=0.21.1
 black>=23.11.0

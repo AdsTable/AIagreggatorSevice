@@ -1,0 +1,25 @@
+Пример структуры для Vue 3 + Vite
+
+frontend/
+├── public/
+│   └── index.html
+├── src/
+│   ├── api/               # запросы к backend (axios/fetch)
+│   ├── assets/            # изображения, логотипы иконки
+│   ├── components/        # переиспользуемые компоненты
+│   ├── layouts/           # layout-обертки
+│   ├── pages/
+│   │   ├── Dashboard.vue
+│   │   ├── Providers.vue
+│   │   ├── Analytics.vue
+│   │   ├── Diagnostics.vue
+│   │   ├── Login.vue
+│   │   └── NotFound.vue
+│   ├── App.vue
+│   ├── main.js
+│   ├── router.js
+│   ├── store/             # Pinia/Vuex
+│   └── styles/
+├── package.json
+├── vite.config.js
+└── README.md

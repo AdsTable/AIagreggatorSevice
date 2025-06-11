@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="professional">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="AI Aggregator Service - Enterprise AI Provider Management Platform">
+    <meta name="author" content="AdsTable">
+    
+    <title>{% block title %}AI Aggregator Pro - Dashboard{% endblock %}</title>
+    
+    <!-- Favicon and App Icons -->
+    <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+    <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
+    <link rel="manifest" href="/static/manifest.json">
+    
+    <!-- Preload Critical Resources -->
+    <link rel="preload" href="/static/css/main.css" as="style">
+    <link rel="preload" href="/static/js/analytics-manager.js" as="script">
+    
+    <!-- Stylesheets -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="/static/css/main.css" rel="stylesheet">
+    
+    <!-- Theme and Color Scheme -->
+    <meta name="theme-color" content="#2563eb">
+    <meta name="color-scheme" content="light dark">
+    
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="antialiased">
+    <!-- Skip to Content for Accessibility -->
+    <a href="#main-content" class="skip-link">Skip to main content</a>
+    
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay">
+        <div class="loading-spinner">
+            <div class="spinner"></div>
+            <p>Loading AI Aggregator Service...</p>
+        </div>
+    </div>
+    
+    <!-- Navigation Header -->
+    <header class="main-header" role="banner">
+        <nav class="navbar" role="navigation" aria-label="main navigation">
+            <div class="navbar-container">
+                <!-- Brand Logo -->
+                <div class="navbar-brand">
+                    <a href="/" class="brand-link" aria-label="AI Aggregator Pro Home">
+                        <i class="fas fa-brain brand-icon" aria-hidden="true"></i>
+                        <span class="brand-text">
+                            <strong>AI Aggregator</strong>
+                            <small>Pro</small>
+                        </span>
+                    </a>
+                    
+                    <!-- Mobile Menu Toggle -->
+                    <button class="mobile-menu-toggle" 
+                            aria-expanded="false" 
+                            aria-controls="mobile-menu"
+                            aria-label="Toggle navigation menu">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </button>
+                </div>
+                
+                <!-- Navigation Menu -->
+                <div class="navbar-menu" id="navbar-menu">
+                    <ul class="navbar-nav" role="menubar">
+                        <li class="nav-item" role="none">
+                            <a href="/" class="nav-link {% block nav_dashboard %}{% endblock %}" 
+                               role="menuitem" aria-current="{% block nav_dashboard_current %}false{% endblock %}">
+                                <i class="fas fa-tachometer-alt" aria-hidden="true"></i>
+                                <span>Dashboard</span>
+                            </a>
+                        </li>
+                        <li class="nav-item" role="none">
+                            <a href="/providers" class="nav-link {% block nav_providers %}{% endblock %}" 
+                               role="menuitem">
+                                <i class="fas fa-cogs" aria-hidden="true"></i>
+                                <span>Providers</span>
+                            </a>
+                        </li>
+                        <li class="nav-item" role="none">
+                            <a href="/analytics" class="nav-link {% block nav_analytics %}{% endblock %}" 
+                               role="menuitem">
+                                <i class="fas fa-chart-line" aria-hidden="true"></i>
+                                <span>Analytics</span>
+                            </a>
+                        </li>
+                        <li class="nav-item" role="none">
+                            <a href="/diagnostics" class="nav-link {% block nav_diagnostics %}{% endblock %}" 
+                               role="menuitem">
+                                <i class="fas fa-stethoscope" aria-hidden="true"></i>
+                                <span>Diagnostics</span>
+                            </a>
+                        </li>
+                        <li class="nav-item" role="none">
+                            <a href="/docs" class="nav-link" role="menuitem" target="_blank">
+                                <i class="fas fa-book" aria-hidden="true"></i>
+                                <span>API Docs</span>
+                                <i class="fas fa-external-link-alt" aria-hidden="true"></i>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+                
+                <!-- User Menu -->
+                <div class="navbar-user">
+                    <!-- System Status Indicator -->
+                    <div class="status-indicator" id="system-status" title="System Status">
+                        <span class="status-dot status-loading" aria-hidden="true"></span>
+                        <span class="status-text sr-only">System status loading</span>
+                    </div>
+                    
+                    <!-- Theme Toggle -->
+                    <button class="theme-toggle" 
+                            aria-label="Toggle dark mode"
+                            title="Toggle theme">
+                        <i class="fas fa-moon" aria-hidden="true"></i>
+                    </button>
+                    
+                    <!-- User Profile -->
+                    <div class="user-profile">
+                        <button class="user-menu-toggle" 
+                                aria-expanded="false"
+                                aria-controls="user-menu"
+                                aria-label="User menu">
+                            <div class="user-avatar">
+                                <i class="fas fa-user" aria-hidden="true"></i>
+                            </div>
+                            <span class="user-name">AdsTable</span>
+                            <i class="fas fa-chevron-down" aria-hidden="true"></i>
+                        </button>
+                        
+                        <!-- User Dropdown Menu -->
+                        <div class="user-dropdown" id="user-menu" role="menu">
+                            <a href="/profile" class="dropdown-item" role="menuitem">
+                                <i class="fas fa-user-circle" aria-hidden="true"></i>
+                                Profile
+                            </a>
+                            <a href="/settings" class="dropdown-item" role="menuitem">
+                                <i class="fas fa-cog" aria-hidden="true"></i>
+                                Settings
+                            </a>
+                            <div class="dropdown-divider" role="separator"></div>
+                            <a href="/logout" class="dropdown-item" role="menuitem">
+                                <i class="fas fa-sign-out-alt" aria-hidden="true"></i>
+                                Logout
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </nav>
+    </header>
+    
+    <!-- Main Layout Container -->
+    <div class="main-layout">
+        <!-- Sidebar Navigation (Desktop) -->
+        <aside class="sidebar" role="complementary" aria-label="Secondary navigation">
+            <div class="sidebar-content">
+                <!-- Quick Actions -->
+                <div class="sidebar-section">
+                    <h3 class="sidebar-title">Quick Actions</h3>
+                    <div class="quick-actions">
+                        <button class="action-btn" id="test-ai-btn" title="Test AI Provider">
+                            <i class="fas fa-play" aria-hidden="true"></i>
+                            Test AI
+                        </button>
+                        <button class="action-btn" id="refresh-status-btn" title="Refresh System Status">
+                            <i class="fas fa-sync" aria-hidden="true"></i>
+                            Refresh
+                        </button>
+                        <button class="action-btn" id="export-logs-btn" title="Export System Logs">
+                            <i class="fas fa-download" aria-hidden="true"></i>
+                            Export
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- System Overview -->
+                <div class="sidebar-section">
+                    <h3 class="sidebar-title">System Overview</h3>
+                    <div class="system-metrics">
+                        <div class="metric-item">
+                            <span class="metric-label">Uptime</span>
+                            <span class="metric-value" id="system-uptime">--</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-label">Requests/min</span>
+                            <span class="metric-value" id="requests-per-minute">--</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-label">Active Providers</span>
+                            <span class="metric-value" id="active-providers">--</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-label">Error Rate</span>
+                            <span class="metric-value" id="error-rate">--</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Recent Activity -->
+                <div class="sidebar-section">
+                    <h3 class="sidebar-title">Recent Activity</h3>
+                    <div class="activity-feed" id="activity-feed">
+                        <div class="activity-item">
+                            <div class="activity-icon">
+                                <i class="fas fa-circle-notch fa-spin" aria-hidden="true"></i>
+                            </div>
+                            <div class="activity-content">
+                                <span class="activity-text">Loading activity...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+        
+        <!-- Main Content Area -->
+        <main class="main-content" id="main-content" role="main">
+            <!-- Page Header -->
+            <div class="page-header">
+                <div class="page-title-section">
+                    <h1 class="page-title">{% block page_title %}Dashboard{% endblock %}</h1>
+                    <p class="page-description">{% block page_description %}Monitor and manage your AI aggregation service{% endblock %}</p>
+                </div>
+                
+                <!-- Page Actions -->
+                <div class="page-actions">
+                    {% block page_actions %}
+                    <button class="btn btn-secondary" id="export-data-btn">
+                        <i class="fas fa-download" aria-hidden="true"></i>
+                        Export Data
+                    </button>
+                    <button class="btn btn-primary" id="new-provider-btn">
+                        <i class="fas fa-plus" aria-hidden="true"></i>
+                        Add Provider
+                    </button>
+                    {% endblock %}
+                </div>
+            </div>
+            
+            <!-- Alert Container -->
+            <div class="alert-container" id="alert-container" role="alert" aria-live="polite">
+                <!-- Dynamic alerts will be inserted here -->
+            </div>
+            
+            <!-- Content Area -->
+            <div class="content-area">
+                {% block content %}
+                <!-- Default Dashboard Content -->
+                <div class="dashboard-grid">
+                    <!-- Status Cards -->
+                    <div class="status-cards">
+                        <div class="status-card">
+                            <div class="card-header">
+                                <h3 class="card-title">System Health</h3>
+                                <div class="card-icon">
+                                    <i class="fas fa-heartbeat" aria-hidden="true"></i>
+                                </div>
+                            </div>
+                            <div class="card-content">
+                                <div class="status-indicator-large" id="health-status">
+                                    <div class="status-dot status-loading"></div>
+                                    <span class="status-text">Checking...</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="status-card">
+                            <div class="card-header">
+                                <h3 class="card-title">AI Providers</h3>
+                                <div class="card-icon">
+                                    <i class="fas fa-network-wired" aria-hidden="true"></i>
+                                </div>
+                            </div>
+                            <div class="card-content">
+                                <div class="provider-status" id="provider-status">
+                                    <div class="loading-placeholder">Loading providers...</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="status-card">
+                            <div class="card-header">
+                                <h3 class="card-title">Performance</h3>
+                                <div class="card-icon">
+                                    <i class="fas fa-tachometer-alt" aria-hidden="true"></i>
+                                </div>
+                            </div>
+                            <div class="card-content">
+                                <div class="performance-metrics" id="performance-metrics">
+                                    <div class="loading-placeholder">Loading metrics...</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="status-card">
+                            <div class="card-header">
+                                <h3 class="card-title">Analytics</h3>
+                                <div class="card-icon">
+                                    <i class="fas fa-chart-bar" aria-hidden="true"></i>
+                                </div>
+                            </div>
+                            <div class="card-content">
+                                <div class="analytics-summary" id="analytics-summary">
+                                    <div class="loading-placeholder">Loading analytics...</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Main Chart Area -->
+                    <div class="chart-container">
+                        <div class="chart-header">
+                            <h3 class="chart-title">Request Volume & Response Times</h3>
+                            <div class="chart-controls">
+                                <select class="time-range-selector" id="chart-time-range">
+                                    <option value="1h">Last Hour</option>
+                                    <option value="24h" selected>Last 24 Hours</option>
+                                    <option value="7d">Last 7 Days</option>
+                                    <option value="30d">Last 30 Days</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="chart-content">
+                            <canvas id="main-chart" aria-label="System performance chart"></canvas>
+                        </div>
+                    </div>
+                    
+                    <!-- Recent Events -->
+                    <div class="events-panel">
+                        <div class="panel-header">
+                            <h3 class="panel-title">Recent Events</h3>
+                            <button class="btn btn-sm btn-outline" id="view-all-events">
+                                View All
+                            </button>
+                        </div>
+                        <div class="events-list" id="events-list">
+                            <div class="loading-placeholder">Loading events...</div>
+                        </div>
+                    </div>
+                </div>
+                {% endblock %}
+            </div>
+        </main>
+    </div>
+    
+    <!-- Footer -->
+    <footer class="main-footer" role="contentinfo">
+        <div class="footer-content">
+            <div class="footer-left">
+                <p>&copy; 2025 AdsTable. AI Aggregator Pro v4.1.0</p>
+                <p>Current Time: <span id="current-time">--</span> UTC</p>
+            </div>
+            <div class="footer-right">
+                <a href="/privacy" class="footer-link">Privacy Policy</a>
+                <a href="/terms" class="footer-link">Terms of Service</a>
+                <a href="/support" class="footer-link">Support</a>
+                <button class="footer-link theme-toggle-text" id="theme-toggle-footer">
+                    <i class="fas fa-palette" aria-hidden="true"></i>
+                    Theme
+                </button>
+            </div>
+        </div>
+    </footer>
+    
+    <!-- Modals and Overlays -->
+    
+    <!-- AI Test Modal -->
+    <div class="modal" id="ai-test-modal" role="dialog" aria-labelledby="ai-test-title" aria-hidden="true">
+        <div class="modal-overlay" aria-hidden="true"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title" id="ai-test-title">Test AI Provider</h2>
+                <button class="modal-close" aria-label="Close modal">
+                    <i class="fas fa-times" aria-hidden="true"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="ai-test-form">
+                    <div class="form-group">
+                        <label for="test-provider" class="form-label">Select Provider</label>
+                        <select id="test-provider" class="form-select" required>
+                            <option value="">Loading providers...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="test-prompt" class="form-label">Test Prompt</label>
+                        <textarea id="test-prompt" 
+                                  class="form-textarea" 
+                                  rows="3" 
+                                  placeholder="Enter your test prompt here..."
+                                  required></textarea>
+                    </div>
+                    <div class="form-group">
+                        <div class="form-options">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="test-detailed" class="form-checkbox">
+                                Include detailed response metrics
+                            </label>
+                        </div>
+                    </div>
+                </form>
+                <div class="test-results" id="test-results" style="display: none;">
+                    <h4>Test Results</h4>
+                    <div class="results-content"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-modal-close>Cancel</button>
+                <button type="submit" form="ai-test-form" class="btn btn-primary" id="run-test-btn">
+                    <i class="fas fa-play" aria-hidden="true"></i>
+                    Run Test
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Settings Modal -->
+    <div class="modal" id="settings-modal" role="dialog" aria-labelledby="settings-title" aria-hidden="true">
+        <div class="modal-overlay" aria-hidden="true"></div>
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h2 class="modal-title" id="settings-title">Application Settings</h2>
+                <button class="modal-close" aria-label="Close modal">
+                    <i class="fas fa-times" aria-hidden="true"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="settings-tabs">
+                    <div class="tab-nav">
+                        <button class="tab-btn active" data-tab="general">General</button>
+                        <button class="tab-btn" data-tab="analytics">Analytics</button>
+                        <button class="tab-btn" data-tab="notifications">Notifications</button>
+                        <button class="tab-btn" data-tab="advanced">Advanced</button>
+                    </div>
+                    <div class="tab-content">
+                        <!-- Settings content will be loaded here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Notification Container -->
+    <div class="notification-container" id="notification-container" aria-live="polite">
+        <!-- Notifications will be inserted here -->
+    </div>
+    
+    <!-- Scripts -->
+    
+    <!-- Core Dependencies -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    
+    <!-- Custom Scripts -->
+    <script src="/static/js/analytics-manager.js"></script>
+    <script src="/static/js/dashboard.js"></script>
+    <script src="/static/js/modals.js"></script>
+    <script src="/static/js/theme.js"></script>
+    <script src="/static/js/main.js"></script>
+    
+    <!-- Page-specific Scripts -->
+    {% block extra_scripts %}{% endblock %}
+    
+    <!-- Analytics Initialization -->
+    <script>
+    // Initialize analytics tracking with error handling
+    document.addEventListener('DOMContentLoaded', function() {
+        // Track page view
+        if (window.robustAnalytics) {
+            robustAnalytics.track('page_view', {
+                page: window.location.pathname,
+                title: document.title,
+                referrer: document.referrer,
+                user: 'AdsTable',
+                timestamp: new Date().toISOString()
+            });
+        }
+        
+        // Track page load performance
+        window.addEventListener('load', function() {
+            const navigationTiming = performance.getEntriesByType('navigation')[0];
+            if (navigationTiming && window.robustAnalytics) {
+                robustAnalytics.track('page_performance', {
+                    load_time: navigationTiming.loadEventEnd - navigationTiming.loadEventStart,
+                    dom_content_loaded: navigationTiming.domContentLoadedEventEnd - navigationTiming.domContentLoadedEventStart,
+                    page: window.location.pathname
+                });
+            }
+        });
+        
+        // Global error tracking
+        window.addEventListener('error', function(event) {
+            if (window.robustAnalytics) {
+                robustAnalytics.track('javascript_error', {
+                    message: event.message,
+                    filename: event.filename,
+                    line: event.lineno,
+                    column: event.colno,
+                    stack: event.error ? event.error.stack : null,
+                    page: window.location.pathname
+                });
+            }
+        });
+        
+        // Track unhandled promise rejections
+        window.addEventListener('unhandledrejection', function(event) {
+            if (window.robustAnalytics) {
+                robustAnalytics.track('promise_rejection', {
+                    reason: event.reason ? event.reason.toString() : 'Unknown',
+                    stack: event.reason && event.reason.stack ? event.reason.stack : null,
+                    page: window.location.pathname
+                });
+            }
+        });
+    });
+    
+    // Global utility functions
+    window.AIAggregator = {
+        // Track feature usage
+        trackFeature: function(feature, details = {}) {
+            if (window.robustAnalytics) {
+                robustAnalytics.track('feature_usage', {
+                    feature: feature,
+                    user: 'AdsTable',
+                    ...details
+                });
+            }
+        },
+        
+        // Track AI requests
+        trackAIRequest: function(provider, prompt, responseTime, success = true) {
+            if (window.robustAnalytics) {
+                robustAnalytics.track('ai_request', {
+                    provider: provider,
+                    prompt_length: prompt ? prompt.length : 0,
+                    response_time: responseTime,
+                    success: success,
+                    user: 'AdsTable',
+                    timestamp: new Date().toISOString()
+                });
+            }
+        },
+        
+        // Show notification
+        showNotification: function(message, type = 'info', duration = 5000) {
+            // Implementation in main.js
+            if (window.showNotification) {
+                window.showNotification(message, type, duration);
+            }
+        },
+        
+        // Get system status
+        getSystemStatus: async function() {
+            try {
+                const response = await fetch('/health');
+                return await response.json();
+            } catch (error) {
+                console.error('Failed to get system status:', error);
+                return null;
+            }
+        }
+    };
+    </script>
+    
+    <!-- Service Worker Registration -->
+    <script>
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/static/sw.js')
+            .then(function(registration) {
+                console.log('Service Worker registered successfully:', registration.scope);
+            })
+            .catch(function(error) {
+                console.log('Service Worker registration failed:', error);
+            });
+    }
+    </script>
+</body>
+</html>

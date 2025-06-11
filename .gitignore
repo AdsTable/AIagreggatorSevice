@@ -6,3 +6,5 @@ database.db
 /tests/__pycache__
 /temp/test_attemp_Version/__pycache__
 /__pycache__
+/config/__pycache__
+/monitoring/__pycache__
