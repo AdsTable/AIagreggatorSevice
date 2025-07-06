@@ -1,0 +1,58 @@
+AIagreggatorSevice Pro
+├── backend/ (Python/FastAPI)
+│   ├── main.py                # Entrypoint, app init, routers
+│   ├── api/                   # API-модули
+│   │   ├── __init__.py
+│   │   ├── analytics.py       # /api/analytics, SSE endpoints
+│   │   ├── providers.py       # /api/providers
+│   │   ├── payments.py        # /api/payments, Stripe/PayPal
+│   │   ├── users.py           # /api/auth, /api/users
+│   │   └── sse.py             # SSE push endpoints
+│   ├── core/
+│   │   ├── config.py
+│   │   ├── security.py        # Auth, RBAC, JWT
+│   │   ├── audit.py           # Audit log, rollback
+│   │   └── utils.py
+│   ├── services/
+│   │   ├── ai_clients.py      # Работа с AI-провайдерами
+│   │   ├── bi.py              # BI-интеграция (optional)
+│   │   └── payments.py
+│   ├── models/                # SQLAlchemy/ORM модели
+│   ├── db/                    # Миграции, Alembic
+│   ├── static/                # (если надо отдавать frontend build)
+│   ├── templates/             # (только если SSR/email)
+│   ├── tests/                 # Pytest/unit/integration
+│   └── requirements.txt
+│
+│
+├── frontend/ (Vue 3 + Quasar)
+│   ├── src/
+│   │   ├── boot/              # Quasar boot files (init plugins)
+│   │   ├── components/        # UI компоненты (ProviderCard, AnalyticsChart, ...)
+│   │   ├── pages/             # Страницы Dashboard, Providers, Analytics, Diagnostics, Login
+│   │   ├── layouts/           # MainLayout, AuthLayout
+│   │   ├── routers/            # Маршрутизация (routes.ts)
+│   │   ├── stores/            # Pinia stores (auth, settings, providers)
+│   │   ├── api/               # API-сервисы (axios + типы)
+│   │   ├── types/             # Типы данных
+│   │   ├── assets/            # Логотипы, иконки
+│   │   └── pwa/               # Service Worker, manifest
+│   │
+│   ├── public/                # index.html, favicon, robots.txt
+│   ├── quasar.config.js
+│   ├── tsconfig.json
+│   ├── vite.config.ts
+│   ├── package.json
+│   ├── tests/                 # e2e/unit tests 
+│   │
+(Vitest)
+│   └── README.md
+│
+│
+├── docker/
+│   ├── Dockerfile.backend
+│   ├── Dockerfile.frontend
+│   └── docker-compose.yml
+├── .github/                   # Workflows, issue templates
+├── README.md
+└── docs/                      # Архитектура, API, BI-интеграции, PWA
