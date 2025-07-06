@@ -1,12 +1,9 @@
-#Пример App.vue (Vue 3, Vite)
-#src/App.vue
-
 <template>
   <MainLayout>
-    <router-view/>
+    <router-view />
   </MainLayout>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import MainLayout from './layouts/MainLayout.vue'
 </script>

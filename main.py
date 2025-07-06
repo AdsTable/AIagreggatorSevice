@@ -6460,6 +6460,7 @@ async def enhanced_startup():
     except Exception as e:
         logger.critical(f"💥 Startup failed: {e}")
         raise
+
 @app.on_event("shutdown")
 async def enhanced_shutdown():
     """Enhanced shutdown sequence with graceful cleanup and final reporting."""

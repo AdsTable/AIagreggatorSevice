@@ -11,7 +11,7 @@ services:
     environment:
       - ENVIRONMENT=development
       - DEBUG=true
-      - DATABASE_URL=sqlite+aiosqlite:///./app.db
+      - DATABASE_URL=sqlite+aiosqlite:///./database.db
       - REDIS_URL=redis://redis:6379/0
       - ENABLE_CACHE=true
       - ENABLE_METRICS=true

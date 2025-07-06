@@ -1,3 +1,4 @@
+# app\static\js\analytics-manager.js
 /**
  * Robust Analytics Manager with Error Handling and Privacy Support
  * Handles blocked requests gracefully and provides fallback mechanisms

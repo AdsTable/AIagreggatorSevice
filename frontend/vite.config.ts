@@ -9,7 +9,8 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
       '@components': path.resolve(__dirname, './src/components'),
       '@pages': path.resolve(__dirname, './src/pages'),
-      '@api': path.resolve(__dirname, './src/api')
+      '@api': path.resolve(__dirname, './src/api'),
+      '@types': path.resolve(__dirname, './src/types')
     }
   },
   server: {
